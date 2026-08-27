@@ -1,0 +1,1 @@
+This is a plain text file that shouldn't be parsed as an image.
