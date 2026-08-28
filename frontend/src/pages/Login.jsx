@@ -47,7 +47,7 @@ function Login({ onLogin }) {
           </div>
 
           <div className="login-brand">
-            <span>i</span>Den<span>Fy</span>
+            <span>i</span>DenT<span>Fy</span>
           </div>
         </div>
 

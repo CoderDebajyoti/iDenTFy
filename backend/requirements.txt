@@ -9,3 +9,7 @@ paddleocr
 opencv-python
 pillow
 numpy
+sqlalchemy
+alembic
+psycopg2-binary
+python-dotenv

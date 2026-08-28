@@ -1,21 +1,16 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export async function verifyDocument(
   documentType,
-  documentFile,
-  faceFile
+  documentFile
 ) {
   const formData = new FormData();
 
   formData.append("document_type", documentType);
-  formData.append("document", documentFile);
-
-  if (faceFile) {
-    formData.append("face", faceFile);
-  }
+  formData.append("document_file", documentFile);
 
   const response = await fetch(
-    `${API_BASE_URL}/api/verify`,
+    `${API_BASE_URL}/api/v1/document/upload`,
     {
       method: "POST",
       body: formData,
@@ -23,7 +18,12 @@ export async function verifyDocument(
   );
 
   if (!response.ok) {
-    throw new Error("Verification failed");
+    let errorDetail = "Verification failed";
+    try {
+      const errorJson = await response.json();
+      errorDetail = errorJson.detail || errorJson.message || errorDetail;
+    } catch (e) {}
+    throw new Error(errorDetail);
   }
 
   return await response.json();
