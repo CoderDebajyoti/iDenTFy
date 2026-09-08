@@ -1,3 +1,14 @@
 node_modules
 .pytest_cache
 venv
+.agents/
+uploads/
+backend/uploads/
+dist/
+*.db
+*.sqlite3
+
+# Environment secrets
+.env
+.env.*
+!.env.example

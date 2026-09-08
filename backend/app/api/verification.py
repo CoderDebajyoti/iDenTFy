@@ -56,10 +56,11 @@ def get_verification_history(
     items = []
     for r in records:
         ocr_f = r.ocr_data.get("fields", {}) if r.ocr_data else {}
-        holder = ocr_f.get("full_name") or "Subject"
-        doc_num = ocr_f.get("document_number") or (r.document.document_number if r.document else "N/A")
-        doc_type = ocr_f.get("document_type") or (r.document.document_type if r.document else "Passport")
-        nationality = ocr_f.get("nationality") or (r.document.issuing_country if r.document else "IND")
+        holder = ocr_f.get("full_name") or (r.document.person.full_name if r.document and r.document.person else "Unextracted")
+        doc_num = ocr_f.get("document_number") or (r.document.document_number if r.document else "Unextracted")
+        doc_type_raw = ocr_f.get("document_type") or (r.document.document_type if r.document else "Document")
+        doc_type = doc_type_raw.title().replace("_", " ")
+        nationality = ocr_f.get("nationality") or (r.document.issuing_country if r.document else "Not Available")
 
         # In-memory search filter if q is provided
         if q:
@@ -72,17 +73,27 @@ def get_verification_history(
             if document_type.lower() not in doc_type.lower():
                 continue
 
+        status_formatted = r.verification_status.title().replace("_", " ")
+        risk_level_formatted = r.risk_level.title() if r.risk_level else "Pending"
+        decision_formatted = (r.final_decision or r.verification_status).title().replace("_", " ")
+
         items.append({
             "id": r.id,
             "timestamp": r.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "document_type": doc_type.title().replace("_", " "),
+            "document_type": doc_type,
+            "documentType": doc_type,
             "holder_name": holder,
+            "holderName": holder,
             "document_number": doc_num,
+            "documentNumber": doc_num,
             "nationality": nationality,
-            "status": r.verification_status.title().replace("_", " "),
-            "risk_level": r.risk_level.title(),
-            "risk_score": r.risk_score or 15,
-            "final_decision": (r.final_decision or r.verification_status).title().replace("_", " ")
+            "status": status_formatted,
+            "risk_level": risk_level_formatted,
+            "riskLevel": risk_level_formatted,
+            "risk_score": r.risk_score,
+            "riskScore": r.risk_score,
+            "final_decision": decision_formatted,
+            "finalDecision": decision_formatted
         })
 
     return items
@@ -102,40 +113,103 @@ def get_verification_dossier(verification_id: str, db: Session = Depends(get_db)
         )
 
     ocr_f = record.ocr_data.get("fields", {}) if record.ocr_data else {}
-    holder = ocr_f.get("full_name") or "Subject"
-    doc_num = ocr_f.get("document_number") or (record.document.document_number if record.document else "N/A")
-    doc_type = ocr_f.get("document_type") or (record.document.document_type if record.document else "Passport")
+    holder = ocr_f.get("full_name") or (record.document.person.full_name if record.document and record.document.person else "Unextracted")
+    doc_num = ocr_f.get("document_number") or (record.document.document_number if record.document else "Unextracted")
+    doc_type_raw = ocr_f.get("document_type") or (record.document.document_type if record.document else "Document")
+    doc_type = doc_type_raw.title().replace("_", " ")
+    nationality = ocr_f.get("nationality") or (record.document.issuing_country if record.document else "Not Available")
+
+    status_formatted = record.verification_status.title().replace("_", " ")
+    risk_level_formatted = record.risk_level.title() if record.risk_level else "Pending"
+    decision_formatted = (record.final_decision or record.verification_status).title().replace("_", " ")
+
+    db_match_str = "No Match"
+    if record.matching_data:
+        db_match_str = record.matching_data.get("match_type", "no_match").title().replace("_", " ")
+
+    tamper_str = "No Anomalies Detected"
+    if record.tampering_data:
+        if record.tampering_data.get("tampering_detected"):
+            tamper_str = "Anomalies Found"
+        elif record.tampering_data.get("requires_review"):
+            tamper_str = "Review Recommended"
+
+    face_str = "Pending"
+    if record.face_data:
+        face_str = record.face_data.get("outcome", "Pending").title().replace("_", " ")
+
+    # Real tampering metrics only
+    tamper_data = record.tampering_data or {}
+    tamper_indicators = tamper_data.get("indicators", [])
+    tamper_summary = "; ".join(tamper_indicators) if tamper_indicators else "No tampering indicators detected"
+
+    image_integrity_val = "Passed"
+    if tamper_data.get("tampering_detected"):
+        image_integrity_val = "Failed (Manipulation Found)"
+    elif tamper_data.get("requires_review"):
+        image_integrity_val = "Requires Review (Elevated Anomaly)"
 
     return {
         "id": record.id,
         "timestamp": record.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
-        "document_type": doc_type.title().replace("_", " "),
+        "document_type": doc_type,
+        "documentType": doc_type,
         "holder_name": holder,
+        "holderName": holder,
         "document_number": doc_num,
-        "nationality": ocr_f.get("nationality") or "IND",
-        "status": record.verification_status.title().replace("_", " "),
-        "risk_level": record.risk_level.title(),
-        "risk_score": record.risk_score or 15,
+        "documentNumber": doc_num,
+        "nationality": nationality,
+        "status": status_formatted,
+        "risk_level": risk_level_formatted,
+        "riskLevel": risk_level_formatted,
+        "risk_score": record.risk_score,
+        "riskScore": record.risk_score,
         "document_status": record.document_decision or record.verification_status,
-        "database_match": record.matching_data.get("match_type", "no_match").title().replace("_", " ") if record.matching_data else "No Match",
-        "tamper_detection": "Anomalies Found" if record.tampering_data and record.tampering_data.get("tampering_detected") else "No Anomalies Detected",
-        "face_verification": record.face_data.get("outcome", "Pending").title() if record.face_data else "Pending",
-        "final_decision": (record.final_decision or record.verification_status).title().replace("_", " "),
+        "documentStatus": record.document_decision or record.verification_status,
+        "database_match": db_match_str,
+        "databaseMatch": db_match_str,
+        "tamper_detection": tamper_str,
+        "tamperDetection": tamper_str,
+        "face_verification": face_str,
+        "faceVerification": face_str,
+        "final_decision": decision_formatted,
+        "finalDecision": decision_formatted,
         "officer_notes": record.officer_notes or "Screening processed per standard protocol.",
+        "officerNotes": record.officer_notes or "Screening processed per standard protocol.",
         "ocr_details": {
-            "fullName": holder,
-            "documentNumber": doc_num,
-            "dob": ocr_f.get("date_of_birth") or "1995-08-15",
-            "nationality": ocr_f.get("nationality") or "IND",
+            "fullName": ocr_f.get("full_name") or "Not Available",
+            "documentNumber": ocr_f.get("document_number") or "Not Available",
+            "dob": ocr_f.get("date_of_birth") or "Not Available",
+            "nationality": ocr_f.get("nationality") or "Not Available",
             "documentType": doc_type,
-            "issueDate": ocr_f.get("issue_date") or "2020-08-15",
-            "expiryDate": ocr_f.get("expiry_date") or "2030-08-14",
+            "issueDate": ocr_f.get("issue_date") or "Not Available",
+            "expiryDate": ocr_f.get("expiry_date") or "Not Available",
+            "mrzRaw": ocr_f.get("mrz_raw")
+        },
+        "ocrDetails": {
+            "fullName": ocr_f.get("full_name") or "Not Available",
+            "documentNumber": ocr_f.get("document_number") or "Not Available",
+            "dob": ocr_f.get("date_of_birth") or "Not Available",
+            "nationality": ocr_f.get("nationality") or "Not Available",
+            "documentType": doc_type,
+            "issueDate": ocr_f.get("issue_date") or "Not Available",
+            "expiryDate": ocr_f.get("expiry_date") or "Not Available",
             "mrzRaw": ocr_f.get("mrz_raw")
         },
         "tamper_forensics": {
-            "image_integrity": "Failed" if record.tampering_data and record.tampering_data.get("tampering_detected") else "Passed (100%)",
-            "metadata_analysis": record.tampering_data.get("metadata_analysis", {}).get("summary", "Clean") if record.tampering_data else "Clean",
-            "tampering_indicators": "; ".join(record.tampering_data.get("indicators", ["None"])) if record.tampering_data else "None",
-            "font_consistency": "Consistent kerning"
+            "image_integrity": image_integrity_val,
+            "imageIntegrity": image_integrity_val,
+            "metadata_analysis": tamper_data.get("metadata_analysis", {}).get("summary", "Not Available"),
+            "metadataAnalysis": tamper_data.get("metadata_analysis", {}).get("summary", "Not Available"),
+            "tampering_indicators": tamper_summary,
+            "tamperingIndicators": tamper_summary
+        },
+        "tamperForensics": {
+            "image_integrity": image_integrity_val,
+            "imageIntegrity": image_integrity_val,
+            "metadata_analysis": tamper_data.get("metadata_analysis", {}).get("summary", "Not Available"),
+            "metadataAnalysis": tamper_data.get("metadata_analysis", {}).get("summary", "Not Available"),
+            "tampering_indicators": tamper_summary,
+            "tamperingIndicators": tamper_summary
         }
     }

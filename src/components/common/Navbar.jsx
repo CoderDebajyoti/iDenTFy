@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Plus, ShieldAlert, UserCheck, ChevronRight } from 'lucide-react';
+import { Menu, Plus, ChevronRight, Shield } from 'lucide-react';
 import Button from './Button';
 
 export default function Navbar({ onToggleSidebar }) {
@@ -28,16 +28,19 @@ export default function Navbar({ onToggleSidebar }) {
           type="button"
           className="mobile-menu-trigger"
           onClick={onToggleSidebar}
-          aria-label="Toggle navigation menu"
+          aria-label="Toggle navigation drawer"
         >
-          <Menu size={22} />
+          <Menu size={20} />
         </button>
 
-        <div className="header-breadcrumbs">
-          <span style={{ color: 'var(--text-muted)' }}>iDenTFy</span>
-          <ChevronRight size={14} />
+        <nav aria-label="Breadcrumb" className="header-breadcrumbs">
+          <Link to="/" className="breadcrumb-root">
+            <Shield size={14} style={{ color: '#2563eb' }} />
+            <span>iDenTFy</span>
+          </Link>
+          <ChevronRight size={13} style={{ color: '#94a3b8' }} />
           <span className="crumb-active">{getBreadcrumb()}</span>
-        </div>
+        </nav>
       </div>
 
       <div className="top-header-right">
@@ -49,14 +52,14 @@ export default function Navbar({ onToggleSidebar }) {
           </Link>
         )}
 
-        <div className="header-officer-badge">
+        <div className="header-officer-badge" title="Authenticated Security Officer Profile">
           <div className="officer-avatar">MHA</div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+          <div className="officer-info">
+            <span className="officer-name">
               Immigration Officer • BOI
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-              Ministry of Home Affairs, Govt. of India
+            <span className="officer-role">
+              Ministry of Home Affairs
             </span>
           </div>
         </div>

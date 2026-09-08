@@ -15,13 +15,12 @@ import {
 } from 'lucide-react';
 import Button from '../common/Button';
 
-export default function FaceCameraCapture({ onVerifyFace, currentStatus }) {
+export default function FaceCameraCapture({ onVerifyFace, currentStatus, isSubmitting }) {
   const [mode, setMode] = useState('camera'); // 'camera' | 'upload'
   const [streamActive, setStreamActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [capturedBlob, setCapturedBlob] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -96,11 +95,9 @@ export default function FaceCameraCapture({ onVerifyFace, currentStatus }) {
   };
 
   const triggerVerification = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    if (capturedBlob && onVerifyFace) {
       onVerifyFace(capturedBlob);
-    }, 1800);
+    }
   };
 
   return (
@@ -226,7 +223,7 @@ export default function FaceCameraCapture({ onVerifyFace, currentStatus }) {
               <Button
                 variant="primary"
                 icon={Sparkles}
-                loading={isProcessing}
+                loading={isSubmitting || currentStatus === 'processing'}
                 onClick={triggerVerification}
               >
                 Verify Biometric Match

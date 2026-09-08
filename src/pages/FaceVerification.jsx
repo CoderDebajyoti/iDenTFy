@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useVerification } from '../context/VerificationContext';
 import FaceCameraCapture from '../components/face/FaceCameraCapture';
 import Button from '../components/common/Button';
-import { Lock, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Lock, ArrowLeft, AlertCircle } from 'lucide-react';
 
 export default function FaceVerification() {
   const navigate = useNavigate();
@@ -13,13 +13,23 @@ export default function FaceVerification() {
     submitFaceMatch,
     ocrResult,
   } = useVerification();
+  const [faceError, setFaceError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Guard: Strictly locked if document verification hasn't succeeded
+  // Strict Security Gate: Strictly locked if document verification hasn't succeeded
   const isDocumentPassed = documentStatus === 'verified';
 
-  const handleVerifyFace = (blob) => {
-    submitFaceMatch(blob);
-    navigate('/verify/final');
+  const handleVerifyFace = async (blob) => {
+    setIsSubmitting(true);
+    setFaceError(null);
+    const res = await submitFaceMatch(blob);
+    setIsSubmitting(false);
+
+    if (res && res.success) {
+      navigate('/verify/final');
+    } else {
+      setFaceError(res?.error || 'Biometric face verification failed to compute match.');
+    }
   };
 
   if (!isDocumentPassed) {
@@ -49,7 +59,8 @@ export default function FaceVerification() {
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
             In accordance with security protocol, face verification can only be performed after
             an identity document has successfully passed initial OCR, tampering forensics,
-            and database matching.
+            and database matching. Current document status is:{' '}
+            <strong style={{ textTransform: 'uppercase', color: '#dc2626' }}>{documentStatus || 'NOT VERIFIED'}</strong>.
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
@@ -91,10 +102,32 @@ export default function FaceVerification() {
         </div>
       </div>
 
+      {faceError && (
+        <div
+          style={{
+            maxWidth: '800px',
+            margin: '0 auto 24px',
+            padding: '14px 18px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: 'var(--radius-md)',
+            color: '#991b1b',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '0.88rem',
+          }}
+        >
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span>{faceError}</span>
+        </div>
+      )}
+
       {/* Face Biometric Camera / Upload Capture Viewport */}
       <FaceCameraCapture
         onVerifyFace={handleVerifyFace}
         currentStatus={faceStatus}
+        isSubmitting={isSubmitting}
       />
     </div>
   );

@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getVerificationHistory } from '../services/api';
 import HistoryFilterBar from '../components/history/HistoryFilterBar';
 import HistoryTable from '../components/history/HistoryTable';
-import { History as HistoryIcon, Download, ShieldCheck } from 'lucide-react';
+import { Download, RefreshCw, AlertCircle } from 'lucide-react';
 import Button from '../components/common/Button';
 
 export default function History() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,13 +16,21 @@ export default function History() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
 
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
       const data = await getVerificationHistory();
-      setRecords(data);
+      setRecords(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || 'Verification service unavailable: Unable to query database.');
+      setRecords([]);
+    } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -29,20 +38,27 @@ export default function History() {
     return records.filter((rec) => {
       // Search matching ID, Holder Name, Document Number
       const q = searchQuery.toLowerCase().trim();
+      const holder = (rec.holderName || rec.holder_name || '').toLowerCase();
+      const docNum = (rec.documentNumber || rec.document_number || '').toLowerCase();
+      const recId = (rec.id || '').toLowerCase();
+
       const matchSearch =
         !q ||
-        rec.id.toLowerCase().includes(q) ||
-        rec.holderName.toLowerCase().includes(q) ||
-        rec.documentNumber.toLowerCase().includes(q);
+        recId.includes(q) ||
+        holder.includes(q) ||
+        docNum.includes(q);
 
       // Doc type matching
-      const matchDocType = docTypeFilter === 'all' || rec.documentType === docTypeFilter;
+      const docType = (rec.documentType || rec.document_type || '').toLowerCase();
+      const matchDocType = docTypeFilter === 'all' || docType.includes(docTypeFilter.toLowerCase());
 
       // Status matching
-      const matchStatus = statusFilter === 'all' || rec.status === statusFilter;
+      const status = (rec.status || '').toLowerCase();
+      const matchStatus = statusFilter === 'all' || status.includes(statusFilter.toLowerCase());
 
       // Risk level matching
-      const matchRisk = riskFilter === 'all' || rec.riskLevel === riskFilter;
+      const risk = (rec.riskLevel || rec.risk_level || '').toLowerCase();
+      const matchRisk = riskFilter === 'all' || risk.includes(riskFilter.toLowerCase());
 
       return matchSearch && matchDocType && matchStatus && matchRisk;
     });
@@ -56,13 +72,14 @@ export default function History() {
   };
 
   const handleExportCSV = () => {
+    if (filteredRecords.length === 0) return;
     const csvContent =
       'data:text/csv;charset=utf-8,' +
       ['Verification ID,Date Time,Holder Name,Document Type,Document Number,Status,Risk Level']
         .concat(
           filteredRecords.map(
             (r) =>
-              `"${r.id}","${r.timestamp}","${r.holderName}","${r.documentType}","${r.documentNumber}","${r.status}","${r.riskLevel}"`
+              `"${r.id}","${r.timestamp}","${r.holderName || r.holder_name}","${r.documentType || r.document_type}","${r.documentNumber || r.document_number}","${r.status}","${r.riskLevel || r.risk_level}"`
           )
         )
         .join('\n');
@@ -88,33 +105,47 @@ export default function History() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <Button variant="secondary" size="sm" icon={Download} onClick={handleExportCSV}>
+            <Button variant="secondary" size="sm" icon={RefreshCw} loading={loading} onClick={loadData}>
+              Refresh
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Download}
+              onClick={handleExportCSV}
+              disabled={filteredRecords.length === 0}
+            >
               Export CSV
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Note: Mock dataset disclaimer */}
-      <div
-        style={{
-          marginBottom: '20px',
-          padding: '10px 16px',
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: '#eff6ff',
-          border: '1px solid #bfdbfe',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '0.8rem',
-          color: '#1d4ed8',
-        }}
-      >
-        <ShieldCheck size={16} />
-        <span>
-          <strong>UI Development Notice:</strong> Showing audit history records for preview. When connected to FastAPI, this page live-syncs with the central verification database.
-        </span>
-      </div>
+      {/* Backend Error Banner */}
+      {error && (
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '14px 18px',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '0.85rem',
+            color: '#991b1b',
+          }}
+        >
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <strong>Database Connection Error:</strong> {error}
+          </div>
+          <Button variant="secondary" size="sm" onClick={loadData}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <HistoryFilterBar
@@ -130,7 +161,11 @@ export default function History() {
       />
 
       {/* Records Table */}
-      <HistoryTable records={filteredRecords} />
+      <HistoryTable
+        records={filteredRecords}
+        isLoading={loading}
+        onReset={handleResetFilters}
+      />
     </div>
   );
 }

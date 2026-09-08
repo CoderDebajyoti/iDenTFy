@@ -27,6 +27,12 @@ export default function DocumentResult() {
   const isReview = documentStatus === 'requires_review';
   const isFailed = documentStatus === 'failed' || documentStatus === 'not_verified' || documentStatus === 'error';
 
+  React.useEffect(() => {
+    if (!verificationId && documentStatus === 'idle') {
+      navigate('/verify/document');
+    }
+  }, [verificationId, documentStatus, navigate]);
+
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* Page Header */}

@@ -75,6 +75,7 @@ def process_document_upload(
 
     # 5. Run OCR & Field Extraction
     ocr_res = run_ocr_on_image(img_bgr, document_type=document_type)
+    ocr_res["document_image_filename"] = safe_name
 
     # 6. Parse MRZ & Check digits
     mrz_raw = ocr_res["fields"].get("mrz_raw")

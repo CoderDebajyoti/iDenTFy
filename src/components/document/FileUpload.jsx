@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileWarning, AlertCircle } from 'lucide-react';
+import { UploadCloud, AlertCircle } from 'lucide-react';
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
@@ -57,7 +57,7 @@ export default function FileUpload({ onFileSelect }) {
   };
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div
         className={`dropzone-container ${isDragOver ? 'is-drag-over' : ''}`}
         onDragOver={handleDragOver}
@@ -83,27 +83,26 @@ export default function FileUpload({ onFileSelect }) {
         />
 
         <div className="dropzone-icon-circle">
-          <UploadCloud size={32} />
+          <UploadCloud size={34} strokeWidth={1.8} />
         </div>
 
         <div>
-          <div className="dropzone-title">Drop your document here</div>
-          <div className="dropzone-subtitle">or browse from your device</div>
+          <div className="dropzone-title">Upload Credential Image</div>
+          <div className="dropzone-subtitle">
+            Drag and drop your scan here, or <span style={{ color: '#2563eb', fontWeight: 600 }}>browse files</span>
+          </div>
         </div>
 
         <div className="dropzone-specs">
-          <span>Supported: JPG, JPEG, PNG</span>
-          <span>•</span>
-          <span>Maximum size: 10 MB</span>
-          <span>•</span>
-          <span>Min resolution: 300 DPI recommended</span>
+          <span className="dropzone-pill">JPG, PNG</span>
+          <span className="dropzone-pill">Max 10 MB</span>
+          <span className="dropzone-pill">300+ DPI recommended</span>
         </div>
       </div>
 
       {errorMessage && (
         <div
           style={{
-            marginTop: '14px',
             padding: '12px 16px',
             backgroundColor: '#fef2f2',
             border: '1px solid #fecaca',

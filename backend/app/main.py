@@ -19,10 +19,11 @@ from app.api.document import router as document_router
 from app.api.face import router as face_router
 from app.api.verification import router as verification_router
 from database.database import engine, Base
-from database.seed import seed_database
+import database.models  # Ensures all ORM models are registered with Base.metadata
 
 # Initialize database schema
 Base.metadata.create_all(bind=engine)
+
 
 # Create FastAPI app
 app = FastAPI(

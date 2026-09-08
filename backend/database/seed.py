@@ -268,36 +268,7 @@ def seed_database():
             status="valid"
         )
 
-        # ======================================================================
-        # 8. Initial Historical Verification Records for History Audit
-        # ======================================================================
-        v1 = VerificationRecord(
-            id="IDF-2026-8891A",
-            document_id=d1.id,
-            verification_status="VERIFIED",
-            risk_level="LOW",
-            risk_score=12,
-            risk_reasons=["Valid ICAO 9303 MRZ", "Registry match confirmed", "Face embedding match (98.4%)"],
-            document_decision="VERIFIED",
-            final_decision="VERIFIED",
-            officer_notes="ICP Delhi Terminal 3. Document authentic.",
-            created_at=datetime.utcnow()
-        )
-
-        v2 = VerificationRecord(
-            id="IDF-2026-8892B",
-            document_id=d2.id,
-            verification_status="REQUIRES_REVIEW",
-            risk_level="MEDIUM",
-            risk_score=48,
-            risk_reasons=["Name spelling similarity (89%)", "Manual inspection advised"],
-            document_decision="REQUIRES_REVIEW",
-            final_decision="REQUIRES_REVIEW",
-            officer_notes="Secondary inspection recommended: birth date check against Aadhaar/registry.",
-            created_at=datetime.utcnow()
-        )
-
-        # Add all to session
+        # Add reference registry entities to session (zero verification records)
         db.add_all([
             p1, d1, pass1,
             p2, d2,
@@ -305,12 +276,11 @@ def seed_database():
             p4, d4,
             p5, d5,
             p6, d6_a, pass6, d6_b,
-            p7, d7, pass7, v_ind_7,
-            v1, v2
+            p7, d7, pass7, v_ind_7
         ])
 
         db.commit()
-        print("Successfully seeded synthetic database with test entities covering all 10 screening scenarios.")
+        print("Successfully seeded registry test entities (0 verification records created).")
 
     except Exception as e:
         db.rollback()

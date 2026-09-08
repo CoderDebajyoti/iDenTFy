@@ -26,16 +26,32 @@ def test_cosine_similarity_math():
 def test_face_verification_blocked_on_unverified_document():
     # Attempting to call POST /api/v1/face/verify on a document that is REQUIRES_REVIEW or NOT_VERIFIED
     # must be strictly blocked with HTTP 403 Forbidden!
-    img = Image.new("RGB", (200, 200), color=(180, 180, 180))
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG")
+    db = SessionLocal()
+    test_id = "IDF-TEST-REVIEW-BLOCKED"
+    rec = VerificationRecord(
+        id=test_id,
+        verification_status="REQUIRES_REVIEW",
+        document_decision="REQUIRES_REVIEW",
+        risk_level="MEDIUM"
+    )
+    db.merge(rec)
+    db.commit()
 
-    files = {"face_file": ("face.jpg", buf.getvalue(), "image/jpeg")}
-    data = {"verification_id": "IDF-2026-8892B"} # Status is REQUIRES_REVIEW
+    try:
+        img = Image.new("RGB", (200, 200), color=(180, 180, 180))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
 
-    response = client.post("/api/v1/face/verify", files=files, data=data)
-    assert response.status_code == 403
-    assert "blocked" in response.json()["detail"].lower()
+        files = {"face_file": ("face.jpg", buf.getvalue(), "image/jpeg")}
+        data = {"verification_id": test_id}
+
+        response = client.post("/api/v1/face/verify", files=files, data=data)
+        assert response.status_code == 403
+        assert "blocked" in response.json()["detail"].lower()
+    finally:
+        db.query(VerificationRecord).filter(VerificationRecord.id == test_id).delete()
+        db.commit()
+        db.close()
 
 def test_face_verification_nonexistent_record():
     img = Image.new("RGB", (200, 200), color=(180, 180, 180))

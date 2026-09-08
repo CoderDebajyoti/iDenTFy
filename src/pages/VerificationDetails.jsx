@@ -37,6 +37,8 @@ export default function VerificationDetails() {
     risk: true,
   });
 
+  const [loadError, setLoadError] = useState(null);
+
   const toggleSection = (key) => {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -44,9 +46,16 @@ export default function VerificationDetails() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const data = await getVerificationDetails(id);
-      setRecord(data);
-      setLoading(false);
+      setLoadError(null);
+      try {
+        const data = await getVerificationDetails(id);
+        setRecord(data);
+      } catch (err) {
+        setLoadError(err.message || 'Failed to retrieve dossier.');
+        setRecord(null);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [id]);
@@ -54,7 +63,23 @@ export default function VerificationDetails() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-        <p>Loading dossier details...</p>
+        <p>Loading dossier details from database...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="card" style={{ textAlign: 'center', padding: '50px 20px', maxWidth: '600px', margin: '40px auto' }}>
+        <h3 style={{ color: '#dc2626', marginBottom: '12px' }}>Dossier Service Unavailable</h3>
+        <p style={{ color: 'var(--text-muted)', margin: '12px 0 24px', fontSize: '0.9rem' }}>
+          {loadError}
+        </p>
+        <Link to="/history">
+          <Button variant="primary" icon={ArrowLeft}>
+            Return to Audit History
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -384,7 +409,7 @@ export default function VerificationDetails() {
           </div>
 
           {expandedSections.risk && (
-            <RiskMeter score={record.riskScore || 15} level={record.riskLevel} />
+            <RiskMeter score={record.riskScore !== null && record.riskScore !== undefined ? record.riskScore : 0} level={record.riskLevel} />
           )}
         </div>
       </div>

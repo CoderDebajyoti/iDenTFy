@@ -38,9 +38,15 @@ export default function FinalResult() {
   const isReview = finalDecision === 'Requires Review';
   const isFailed = finalDecision === 'Verification Failed';
 
+  React.useEffect(() => {
+    if (!verificationId && finalDecision === 'Pending') {
+      navigate('/verify/document');
+    }
+  }, [verificationId, finalDecision, navigate]);
+
   const renderIndicator = (statusStr) => {
     const s = String(statusStr || '').toLowerCase();
-    if (s.includes('pass') || s.includes('verif') || s.includes('match') && !s.includes('not') && !s.includes('discrep')) {
+    if (s.includes('pass') || s.includes('verif') || (s.includes('match') && !s.includes('not') && !s.includes('discrep') && !s.includes('no match'))) {
       return (
         <span style={{ color: 'var(--color-success)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <CheckCircle2 size={18} />
@@ -56,18 +62,18 @@ export default function FinalResult() {
         </span>
       );
     }
-    if (s.includes('fail') || s.includes('not') || s.includes('error')) {
+    if (s.includes('fail') || s.includes('not') || s.includes('error') || s.includes('no match')) {
       return (
         <span style={{ color: 'var(--color-danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <XCircle size={18} />
-          <span>Failed</span>
+          <span>{s.includes('no match') ? 'No Match' : 'Failed'}</span>
         </span>
       );
     }
     return (
       <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
         <Clock size={18} />
-        <span>Pending</span>
+        <span>Not Available</span>
       </span>
     );
   };
@@ -150,7 +156,7 @@ export default function FinalResult() {
 
       {/* Risk Meter Gauge */}
       <div style={{ marginBottom: '32px' }}>
-        <RiskMeter score={riskScore || (isVerified ? 14 : isReview ? 48 : 92)} level={riskLevel} />
+        <RiskMeter score={riskScore !== null && riskScore !== undefined ? riskScore : 0} level={riskLevel} />
       </div>
 
       {/* Verification Scorecard Grid */}
@@ -176,7 +182,7 @@ export default function FinalResult() {
         <div className="scorecard-item">
           <span className="scorecard-label">Database Match</span>
           <div className="scorecard-value">
-            {renderIndicator(matchingResult?.databaseMatch || 'Pending')}
+            {renderIndicator(matchingResult?.databaseMatch || 'Not Available')}
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             Registry Cross-Check
@@ -187,7 +193,7 @@ export default function FinalResult() {
         <div className="scorecard-item">
           <span className="scorecard-label">Tamper Forensics</span>
           <div className="scorecard-value">
-            {renderIndicator(tamperResult?.imageIntegrity || 'Passed')}
+            {renderIndicator(tamperResult?.imageIntegrity || 'Not Available')}
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             Digital Copy-Paste & ELA
@@ -198,7 +204,7 @@ export default function FinalResult() {
         <div className="scorecard-item">
           <span className="scorecard-label">Face Biometrics</span>
           <div className="scorecard-value">
-            {renderIndicator(faceStatus === 'matched' ? 'Passed' : faceStatus === 'requires_review' ? 'Review' : 'Failed')}
+            {renderIndicator(faceStatus === 'matched' ? 'Passed' : faceStatus === 'requires_review' ? 'Review' : faceStatus === 'not_matched' || faceStatus === 'failed' ? 'Failed' : 'Not Available')}
           </div>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             1:1 Live Subject Match

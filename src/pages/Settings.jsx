@@ -71,9 +71,9 @@ export default function Settings() {
             </div>
 
             {healthResult && (
-              <span className={`badge ${healthResult.online ? 'badge-verified' : 'badge-review'}`}>
+              <span className={`badge ${healthResult.online ? 'badge-verified' : 'badge-rejected'}`}>
                 {healthResult.online ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-                <span>{healthResult.online ? 'Online' : 'Standby / Preview'}</span>
+                <span>{healthResult.online ? 'Online' : 'Offline'}</span>
               </span>
             )}
           </div>
@@ -95,9 +95,9 @@ export default function Settings() {
               </div>
 
               <div className="forensic-field-item">
-                <span className="field-label">Document Upload Route</span>
-                <span className="field-value">
-                  POST /api/v1/document/upload
+                <span className="field-label">Database Connection</span>
+                <span className="field-value" style={{ color: healthResult?.database === 'connected' ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                  {healthResult?.database ? healthResult.database.toUpperCase() : 'CHECKING...'}
                 </span>
               </div>
 
@@ -108,6 +108,22 @@ export default function Settings() {
                 </span>
               </div>
             </div>
+
+            {healthResult?.error && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.82rem',
+                  color: '#991b1b',
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong>Connection Error:</strong> {healthResult.error}
+              </div>
+            )}
 
             <div
               style={{
@@ -120,9 +136,9 @@ export default function Settings() {
                 lineHeight: 1.5,
               }}
             >
-              <strong>Technical Infrastructure Notice:</strong> The health check tests network
-              connectivity against <code>/api/v1/health</code> to verify FastAPI backend availability.
-              When the server is offline or in development, the frontend operates in standalone inspection mode.
+              <strong>Technical Infrastructure Notice:</strong> The health probe verifies live network
+              connectivity and database responsiveness against <code>/api/v1/health</code>. Verification
+              workflows require an active connection to the FastAPI backend service.
             </div>
           </div>
         </div>

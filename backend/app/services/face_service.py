@@ -44,19 +44,18 @@ def detect_and_crop_face(image_bgr: np.ndarray) -> Tuple[Optional[np.ndarray], i
             )
             face_count = len(faces)
 
-            if face_count == 0:
-                return None, 0, "No face detected in frame. Please face camera directly with good lighting."
-            if face_count > 1:
+            if face_count == 1:
+                x, y, w, h = faces[0]
+                margin_x = int(w * 0.1)
+                margin_y = int(h * 0.1)
+                x1 = max(0, x - margin_x)
+                y1 = max(0, y - margin_y)
+                x2 = min(width, x + w + margin_x)
+                y2 = min(height, y + h + margin_y)
+                return image_bgr[y1:y2, x1:x2], 1, None
+            elif face_count > 1:
                 return None, face_count, "Multiple faces detected. Verification requires a single subject."
-
-            x, y, w, h = faces[0]
-            margin_x = int(w * 0.1)
-            margin_y = int(h * 0.1)
-            x1 = max(0, x - margin_x)
-            y1 = max(0, y - margin_y)
-            x2 = min(width, x + w + margin_x)
-            y2 = min(height, y + h + margin_y)
-            return image_bgr[y1:y2, x1:x2], 1, None
+            # If face_count == 0, fall through to morphological/skin-tone fallback below
         except Exception:
             pass
 

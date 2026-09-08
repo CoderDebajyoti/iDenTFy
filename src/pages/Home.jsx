@@ -12,7 +12,10 @@ import {
   FileCheck2,
   Sparkles,
   CheckCircle2,
-  Lock
+  Lock,
+  Cpu,
+  Layers,
+  Fingerprint
 } from 'lucide-react';
 import Button from '../components/common/Button';
 
@@ -33,75 +36,75 @@ export default function Home() {
           </h1>
 
           <p className="hero-subtitle">
-            Detect forged documents, identify inconsistencies, and verify identities
-            with AI-powered document analysis, optical forensic screening, and biometric face matching.
+            Detect forged credentials, identify digital tampering, and verify citizen identities
+            with enterprise OCR extraction, copy-move forensic screening, and 1:1 biometric facial confirmation.
           </p>
 
           <div className="hero-actions">
             <Link to="/verify/document">
               <Button variant="primary" size="lg" icon={FileCheck2}>
-                Start Verification
+                Start New Screening
               </Button>
             </Link>
 
             <Link to="/history">
               <Button variant="secondary" size="lg" icon={History}>
-                View Verification History
+                Audit History
               </Button>
             </Link>
           </div>
 
-          {/* Key Stat Badges */}
-          <div style={{ display: 'flex', gap: '24px', marginTop: '36px' }}>
-            <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-brand-navy)' }}>
+          {/* Key Stat Badges Ticker */}
+          <div className="hero-stats-row">
+            <div className="stat-item">
+              <div className="stat-num">
                 ICAO 9303
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Indian Passport & Global Standard
+              <div className="stat-lbl">
+                Passports & National ID Standard
               </div>
             </div>
-            <div style={{ width: '1px', background: 'var(--border-subtle)' }} />
-            <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#2563eb' }}>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-num highlight-blue">
                 Multi-Spectral
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Tamper Anomaly Detection
+              <div className="stat-lbl">
+                Tamper Anomaly Forensics
               </div>
             </div>
-            <div style={{ width: '1px', background: 'var(--border-subtle)' }} />
-            <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-success)' }}>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-num highlight-emerald">
                 1:1 Biometric
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Face Verification Match
+              <div className="stat-lbl">
+                Facial Match Confirmation
               </div>
             </div>
           </div>
         </div>
 
-        {/* Sophisticated Abstract Document Intelligence Visual */}
+        {/* Holographic Document Intelligence Visual */}
         <div className="hero-visual-canvas">
           {/* Floating AI Badges */}
           <div className="hero-floating-badge floating-ocr">
-            <ScanText size={14} style={{ color: '#38bdf8' }} />
-            <span>PaddleOCR • 99.2% Confidence</span>
+            <ScanText size={15} style={{ color: '#38bdf8' }} />
+            <span>PaddleOCR • 99.2% Accuracy</span>
           </div>
 
           <div className="hero-floating-badge floating-tamper">
-            <ShieldCheck size={14} style={{ color: '#34d399' }} />
+            <ShieldCheck size={15} style={{ color: '#34d399' }} />
             <span>Zero Forensic Splicing</span>
           </div>
 
-          {/* Realistic Holographic Indian Document Card */}
+          {/* Holographic Credential Mock Card */}
           <div className="passport-mock-card">
             <div className="passport-scan-bar" />
 
             <div className="passport-header-mock">
               <span className="mock-country">REPUBLIC OF INDIA • भारत गणराज्य</span>
-              <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+              <span className="mock-doc-type">
                 PASSPORT &lt; IND
               </span>
             </div>
@@ -144,11 +147,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* System Overview 4 Capabilities Section */}
+      {/* System Capabilities 4-Grid */}
       <section className="section-capabilities">
         <div className="section-header-center">
           <div className="section-tag">Core Engine Features</div>
           <h2 className="section-title">Automated Document Defense Architecture</h2>
+          <p style={{ fontSize: '0.94rem', color: 'var(--text-muted)', marginTop: '8px', maxWidth: '620px', margin: '8px auto 0' }}>
+            Multi-layered forensic verification combining machine vision, cryptographical matching, and neural biometrics.
+          </p>
         </div>
 
         <div className="capability-grid">
@@ -158,12 +164,12 @@ export default function Home() {
               <ScanText size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '6px' }}>
-                OCR & Document Processing
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '8px' }}>
+                OCR & Field Parsing
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                 Advanced neural text recognition parses complex visual fields, validates checksum digits,
-                and extracts machine-readable zone (MRZ) data lines with high precision.
+                and extracts machine-readable zone (MRZ) lines with high precision.
               </p>
             </div>
           </div>
@@ -174,12 +180,12 @@ export default function Home() {
               <Database size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '6px' }}>
-                Document Matching
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '8px' }}>
+                Database Cross-Matching
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Cross-references extracted credentials against central border control databases,
-                fuzzy-matches identity names, and verifies document template formatting rules.
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Cross-references extracted credentials against central security registries,
+                fuzzy-matches identity names, and verifies document template rules.
               </p>
             </div>
           </div>
@@ -190,12 +196,12 @@ export default function Home() {
               <ShieldAlert size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '6px' }}>
-                Tamper Detection
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '8px' }}>
+                Tamper Forensics
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Error level analysis (ELA), digital copy-paste forensics, and typographic kerning
-                heuristics flag altered dates, swapped portraits, and manipulated security fibers.
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Error level analysis (ELA), copy-paste forensic heuristics, and typographic kerning
+                detect altered dates, swapped portraits, and manipulated text lines.
               </p>
             </div>
           </div>
@@ -203,28 +209,28 @@ export default function Home() {
           {/* Card 4 */}
           <div className="capability-card">
             <div className="capability-icon cap-purple">
-              <UserCheck size={24} />
+              <Fingerprint size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '6px' }}>
-                Face Verification
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-brand-navy)', marginBottom: '8px' }}>
+                1:1 Face Biometrics
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                 Executes 1:1 facial biometric matching between the document photo and a live camera
-                capture of the subject to prevent impersonation and identity fraud.
+                capture of the subject to prevent impersonation and identity spoofing.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works 5-Step Flow */}
+      {/* 5-Step Pipeline Flow */}
       <section className="section-workflow">
         <div className="section-header-center">
-          <div className="section-tag">Verification Lifecycle</div>
-          <h2 className="section-title">How The System Works</h2>
-          <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: '8px', maxWidth: '600px', margin: '8px auto 0' }}>
-            A rigorous 5-stage pipeline ensuring zero compromised documents pass through screening
+          <div className="section-tag">Verification Pipeline</div>
+          <h2 className="section-title">How The Screening Engine Works</h2>
+          <p style={{ fontSize: '0.94rem', color: 'var(--text-muted)', marginTop: '8px', maxWidth: '600px', margin: '8px auto 0' }}>
+            A rigorous 5-stage pipeline ensuring zero fraudulent or compromised documents pass through screening
           </p>
         </div>
 
@@ -233,23 +239,23 @@ export default function Home() {
             <span className="step-num-pill">01</span>
             <h4 className="step-card-title">Upload Document</h4>
             <p className="step-card-desc">
-              Officer uploads a high-resolution image of a Passport, National ID, Residence Permit, or Driver License.
+              Officer uploads a high-resolution scan or photo of Passport, National ID, or Driver License.
             </p>
           </div>
 
           <div className="workflow-step-card">
             <span className="step-num-pill">02</span>
-            <h4 className="step-card-title">OCR & Analysis</h4>
+            <h4 className="step-card-title">OCR & Forensics</h4>
             <p className="step-card-desc">
-              AI engine performs image quality enhancement, text extraction, and MRZ checksum validation.
+              Optical engine performs image normalization, field extraction, and MRZ checksum validation.
             </p>
           </div>
 
           <div className="workflow-step-card">
             <span className="step-num-pill">03</span>
-            <h4 className="step-card-title">Database Matching</h4>
+            <h4 className="step-card-title">Registry Match</h4>
             <p className="step-card-desc">
-              Extracted fields are matched against national security registries to confirm legitimacy.
+              Extracted fields are cross-checked against authorized government databases for consistency.
             </p>
           </div>
 
@@ -257,20 +263,20 @@ export default function Home() {
             <span className="step-num-pill">04</span>
             <h4 className="step-card-title">Face Verification</h4>
             <p className="step-card-desc">
-              Only once document integrity passes, live subject biometric capture is cross-matched against the document.
+              Upon document integrity pass, live facial biometric capture is matched with document portrait.
             </p>
           </div>
 
           <div className="workflow-step-card">
             <span className="step-num-pill">05</span>
-            <h4 className="step-card-title">Decision & Risk</h4>
+            <h4 className="step-card-title">Decision Dossier</h4>
             <p className="step-card-desc">
-              The risk engine synthesizes all forensic indicators into an actionable decision dossier for the officer.
+              Forensic engine synthesizes all risk indicators into a final determination and audit dossier.
             </p>
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '36px' }}>
+        <div style={{ textAlign: 'center', marginTop: '40px' }}>
           <Link to="/verify/document">
             <Button variant="primary" size="lg" icon={ArrowRight}>
               Initiate Document Screening

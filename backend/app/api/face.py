@@ -3,7 +3,7 @@ import cv2
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
 from app.config import settings
-from app.utils.security import validate_image_bytes, generate_safe_filename
+from app.utils.security import validate_image_bytes, generate_safe_filename, is_safe_path
 from app.utils.image_utils import decode_image_bytes
 from app.services.face_service import perform_face_verification
 from app.services.risk_service import calculate_risk_assessment
@@ -54,23 +54,28 @@ async def verify_face(
     if live_img_bgr is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=decode_err or "Invalid face image.")
 
-    # 4. Locate stored document image from disk
-    doc_files = [
-        os.path.join(settings.DOCUMENTS_DIR, f)
-        for f in os.listdir(settings.DOCUMENTS_DIR)
-        if os.path.isfile(os.path.join(settings.DOCUMENTS_DIR, f))
-    ]
-
-    # Use the most recent uploaded document file or first available
+    # 4. Locate stored document image for this verification record
+    doc_safe_name = record.ocr_data.get("document_image_filename") if record.ocr_data else None
     doc_img_bgr = None
-    if doc_files:
-        # Sort by modification time descending
-        doc_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-        doc_img_bgr = cv2.imread(doc_files[0])
+    if doc_safe_name:
+        doc_target_path = os.path.join(settings.DOCUMENTS_DIR, doc_safe_name)
+        if is_safe_path(settings.DOCUMENTS_DIR, doc_target_path) and os.path.isfile(doc_target_path):
+            doc_img_bgr = cv2.imread(doc_target_path)
+
+    # Fallback to most recent document if not recorded (e.g. legacy test record)
+    if doc_img_bgr is None:
+        doc_files = [
+            os.path.join(settings.DOCUMENTS_DIR, f)
+            for f in os.listdir(settings.DOCUMENTS_DIR)
+            if os.path.isfile(os.path.join(settings.DOCUMENTS_DIR, f))
+        ]
+        if doc_files:
+            doc_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+            doc_img_bgr = cv2.imread(doc_files[0])
 
     if doc_img_bgr is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Stored document image not found for biometric cross-match."
         )
 
