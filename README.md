@@ -136,3 +136,5 @@ cd backend
 pytest tests -v
 ```
 All 29 tests validate upload screening, fuzzy matching, MRZ check digits, tampering forensics, face gating, and decision rules.
+
+-------------------------------------------- Thank You For Visit ----------------------------------------------------------------
