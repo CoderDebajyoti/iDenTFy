@@ -74,6 +74,64 @@ def format_mrz_date(yymmdd: str, is_expiry: bool = False) -> Optional[str]:
     except Exception:
         return None
 
+def parse_mrz_name(raw_name_section: str) -> Tuple[str, str, str]:
+    """
+    Parse ICAO 9303 MRZ name section (SURNAME<<GIVEN<NAMES<<<<...).
+    Returns (surname, given_names, full_name).
+    """
+    if not raw_name_section:
+        return "", "", ""
+
+    # Clean leading filler and invalid characters
+    cleaned = raw_name_section.strip()
+
+    # Split primary identifier (surname) from secondary identifier (given names)
+    if "<<" in cleaned:
+        parts = cleaned.split("<<", 1)
+        raw_surname = parts[0]
+        raw_given = parts[1]
+    else:
+        raw_surname = cleaned
+        raw_given = ""
+
+    # Within each identifier, words are separated by '<'
+    surname_words = [w.strip() for w in raw_surname.split("<") if w.strip()]
+    given_words = [w.strip() for w in raw_given.split("<") if w.strip()]
+
+    surname = " ".join(surname_words)
+    given_names = " ".join(given_words)
+
+    # Format human-readable full name
+    if given_names and surname:
+        full_name = f"{given_names} {surname}"
+    elif surname:
+        full_name = surname
+    else:
+        full_name = given_names
+
+    return surname, given_names, full_name
+
+def parse_mrz_td3_line1(line1: str) -> Tuple[str, str, str, str, str]:
+    """
+    Parse Line 1 of TD3 Passport (44 characters):
+    P<ISSUINGSTATE<SURNAME<<GIVEN<NAMES<<<<...
+    Returns (doc_type, issuing_country, surname, given_names, full_name).
+    """
+    doc_type = line1[0:2].replace("<", "")
+    body = line1[2:]
+
+    # Issuing country is 3 characters (e.g., IND, FRA, USA, GBR, D<<)
+    if len(body) >= 3 and (body[:3].isalpha() or any(c.isdigit() for c in body[:3])):
+        issuing_country = sanitize_alpha_mrz(body[:3])
+        name_section = body[3:]
+    else:
+        country_parts = body.split("<", 1)
+        issuing_country = sanitize_alpha_mrz(country_parts[0])
+        name_section = country_parts[1] if len(country_parts) > 1 else ""
+
+    surname, given_names, full_name = parse_mrz_name(name_section)
+    return doc_type, issuing_country, surname, given_names, full_name
+
 def parse_and_validate_mrz(mrz_text: Optional[str]) -> Dict[str, Any]:
     """
     Parse MRZ lines and validate standard ICAO 9303 checksums.
@@ -117,20 +175,16 @@ def parse_and_validate_mrz(mrz_text: Optional[str]) -> Dict[str, Any]:
         line1 = raw_lines[0].ljust(44, "<")[:44]
         line2 = raw_lines[1].ljust(44, "<")[:44]
 
-        doc_type = line1[0:2].replace("<", "")
-        issuing_country = sanitize_alpha_mrz(line1[2:5].replace("<", ""))
-
-        name_section = line1[5:44]
-        name_parts = name_section.split("<<")
-        surname = name_parts[0].replace("<", " ").strip() if len(name_parts) > 0 else ""
-        given_names = name_parts[1].replace("<", " ").strip() if len(name_parts) > 1 else ""
-        full_name = f"{given_names} {surname}".strip() if surname else given_names
+        doc_type, issuing_country, surname, given_names, full_name = parse_mrz_td3_line1(line1)
 
         doc_num_raw = line2[0:9]
         doc_num = doc_num_raw.replace("<", "")
         doc_num_check = sanitize_numeric_mrz(line2[9])
 
-        nationality = sanitize_alpha_mrz(line2[10:13].replace("<", ""))
+        nationality_raw = line2[10:13]
+        nationality = sanitize_alpha_mrz(nationality_raw.replace("<", ""))
+        if nationality in ["IZD", "1ND", "I1D"]:
+            nationality = "IND"
         dob_raw = sanitize_numeric_mrz(line2[13:19])
         dob_check = sanitize_numeric_mrz(line2[19])
         gender = line2[20].replace("<", "X")
@@ -207,10 +261,7 @@ def parse_and_validate_mrz(mrz_text: Optional[str]) -> Dict[str, Any]:
         expiry_check = sanitize_numeric_mrz(line2[14])
         nationality = sanitize_alpha_mrz(line2[15:18].replace("<", ""))
 
-        name_parts = line3.split("<<")
-        surname = name_parts[0].replace("<", " ").strip() if len(name_parts) > 0 else ""
-        given_names = name_parts[1].replace("<", " ").strip() if len(name_parts) > 1 else ""
-        full_name = f"{given_names} {surname}".strip()
+        surname, given_names, full_name = parse_mrz_name(line3)
 
         expected_doc_check = calculate_check_digit(doc_num_raw)
         expected_dob_check = calculate_check_digit(dob_raw)

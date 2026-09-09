@@ -86,8 +86,15 @@ export function VerificationProvider({ children }) {
 
       // Store genuine OCR fields without fabricated data
       const fields = data.ocr_result?.fields || {};
+      const ocrRes = data.ocr_result || {};
       setOcrResult({
         fullName: fields.full_name || 'Not Available',
+        surname: fields.surname || null,
+        givenNames: fields.given_names || null,
+        name: ocrRes.name || fields.name || {},
+        visualName: ocrRes.visual_name || fields.visual_name || {},
+        mrzName: ocrRes.mrz_name || fields.mrz_name || {},
+        nameConsistency: ocrRes.name_consistency || fields.name_consistency || {},
         documentNumber: fields.document_number || 'Not Available',
         dob: fields.date_of_birth || 'Not Available',
         nationality: fields.nationality || 'Not Available',
@@ -99,11 +106,15 @@ export function VerificationProvider({ children }) {
         placeOfIssue: fields.place_of_issue || null,
         issuingAuthority: fields.issuing_authority || null,
         mrzRaw: fields.mrz_raw || null,
-        confidence: data.ocr_result?.confidence || 0,
-        averageConfidence: data.ocr_result?.average_confidence || 0,
-        engine: data.ocr_result?.engine || 'RapidOCR-ONNX',
-        textLines: data.ocr_result?.text_lines || [],
-        fullText: data.ocr_result?.full_text || '',
+        confidence: ocrRes.confidence || 0,
+        averageConfidence: ocrRes.average_confidence || 0,
+        fieldConfidence: ocrRes.field_confidence || {},
+        qualityScore: ocrRes.quality_score || 'GOOD',
+        qualityReason: ocrRes.quality_reason || '',
+        processingTimeMs: ocrRes.processing_time_ms || 0,
+        engine: ocrRes.engine || 'RapidOCR-ONNX',
+        textLines: ocrRes.text_lines || [],
+        fullText: ocrRes.full_text || '',
         mrzResult: data.mrz_result || null,
       });
 

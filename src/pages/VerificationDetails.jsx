@@ -225,11 +225,82 @@ export default function VerificationDetails() {
 
           {expandedSections.ocr && record.ocrDetails && (
             <div>
-              <div className="forensic-field-list">
-                <div className="forensic-field-item">
-                  <span className="field-label">Full Name (OCR)</span>
-                  <span className="field-value">{record.ocrDetails.fullName}</span>
+              {/* Identity Information Section */}
+              <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.05em' }}>
+                    Identity Information
+                  </span>
+                  {record.ocrDetails.nameConsistency?.status && (
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        background:
+                          record.ocrDetails.nameConsistency.status === 'CONSISTENT'
+                            ? '#dcfce7'
+                            : record.ocrDetails.nameConsistency.status === 'POSSIBLE_OCR_VARIATION'
+                            ? '#fef3c7'
+                            : record.ocrDetails.nameConsistency.status === 'INCONSISTENT'
+                            ? '#fee2e2'
+                            : '#f1f5f9',
+                        color:
+                          record.ocrDetails.nameConsistency.status === 'CONSISTENT'
+                            ? '#15803d'
+                            : record.ocrDetails.nameConsistency.status === 'POSSIBLE_OCR_VARIATION'
+                            ? '#b45309'
+                            : record.ocrDetails.nameConsistency.status === 'INCONSISTENT'
+                            ? '#b91c1c'
+                            : '#64748b',
+                        border: '1px solid currentColor',
+                      }}
+                    >
+                      {record.ocrDetails.nameConsistency.status.replace(/_/g, ' ')}
+                    </span>
+                  )}
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <span className="field-label" style={{ fontSize: '0.7rem' }}>Full Name</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                      {record.ocrDetails.fullName || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="field-label" style={{ fontSize: '0.7rem' }}>Surname</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                      {record.ocrDetails.surname || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="field-label" style={{ fontSize: '0.7rem' }}>Given Names</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                      {record.ocrDetails.givenNames || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Name Sources Comparison */}
+                {(record.ocrDetails.visualName?.full_name || record.ocrDetails.mrzName?.full_name) && (
+                  <div style={{ background: '#ffffff', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0', fontSize: '0.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Visual OCR: </span>
+                        <strong style={{ color: '#0f172a' }}>{record.ocrDetails.visualName?.full_name || 'Not detected'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>MRZ: </span>
+                        <strong style={{ color: '#0f172a' }}>{record.ocrDetails.mrzName?.full_name || 'Not detected'}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="forensic-field-list">
                 <div className="forensic-field-item">
                   <span className="field-label">Document Number</span>
                   <span className="field-value">{record.ocrDetails.documentNumber}</span>

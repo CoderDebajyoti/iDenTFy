@@ -191,7 +191,221 @@ def run_ocr_on_image(image_bgr: np.ndarray, document_type: str = "passport") -> 
         "fields": fields
     }
 
-def extract_fields_and_confidences(full_text: str, document_type: str, lines: List[Dict[str, Any]]) -> Tuple[Dict[str, Optional[str]], Dict[str, Optional[float]]]:
+DOCUMENT_STOP_WORDS = {
+    "REPUBLIC", "PASSPORT", "PASSEPORT", "INDIA", "FRANCE", "UNION", "EUROPEAN",
+    "DEUTSCHLAND", "ESPANA", "KINGDOM", "OFFICIAL", "NATIONALITY", "COUNTRY",
+    "DATE", "BIRTH", "PLACE", "ISSUE", "EXPIRY", "AUTHORITY", "SIGNATURE",
+    "TYPE", "CODE", "SEX", "GENDER", "SPECIMEN", "SAMPLE", "THESE ARE",
+    "BY ORDER", "GOVERNMENT", "MINISTRY", "EMBASSY", "IDENTITY", "CARD",
+    "PERMIT", "LICENSE", "FEDERATION", "EXPEDITION", "VALIDITY", "EXPIRED",
+    "POB", "POI", "DOB", "SURNAME", "GIVEN", "NAMES", "NOM", "PRENOM", "PRENOMS",
+    "APELLIDOS", "NOMBRE", "NOMBRES", "NACHNAME", "VORNAMEN", "COGNOME", "NOME",
+    "HOLALOLPALKE", "CZNY", "LIDK", "HG TURI", "UEUNS", "CNQ", "BITH", "SUE", "FRH",
+    "THESE", "REQUEST", "REQUIRE", "PRESIDENT"
+}
+
+SURNAME_LABEL_REGEX = re.compile(
+    r"\b(?:SURNAME|NOM(?:\s+D['’]USAGE)?|FAMILY\s*NAME|NACHNAME|APELLIDOS|COGNOME|SURNAM|F/SURI|SURI)\b",
+    re.IGNORECASE
+)
+
+GIVEN_NAMES_LABEL_REGEX = re.compile(
+    r"\b(?:GIVEN\s*NAME[S]?|PR[EÉ]NOM[S]?|FIRST\s*NAME|FORENAME[S]?|VORNAME[N]?|NOMBRES|GIVENNAME|GIV\s*NSME|GIV\s*NAME)\b",
+    re.IGNORECASE
+)
+
+FULL_NAME_LABEL_REGEX = re.compile(
+    r"\b(?:FULL\s*NAME|HOLDER['’]?S\s*NAME|NOM\s*COMPLET|NAME\s*/\s*NOM)\b",
+    re.IGNORECASE
+)
+
+def normalize_name_string(name: Optional[str]) -> Optional[str]:
+    """
+    Clean and normalize human name strings without destructive character substitutions.
+    """
+    if not name:
+        return None
+    import unicodedata
+    norm = unicodedata.normalize("NFKC", str(name))
+    norm = norm.replace("<", " ")
+    norm = re.sub(r"[^A-Za-zÀ-ÿ\s\'-]", " ", norm)
+    norm = re.sub(r"\s+", " ", norm).strip()
+    if len(norm) < 2:
+        return None
+    return norm.upper()
+
+def is_valid_name_candidate(cand: Optional[str]) -> bool:
+    """Validate that candidate string is a plausible person name component."""
+    if not cand or len(cand) < 2 or len(cand) > 45:
+        return False
+    if SURNAME_LABEL_REGEX.search(cand) or GIVEN_NAMES_LABEL_REGEX.search(cand) or FULL_NAME_LABEL_REGEX.search(cand):
+        return False
+    clean = normalize_name_string(cand)
+    if not clean:
+        return False
+    words = clean.split()
+    if not words or any(w in DOCUMENT_STOP_WORDS for w in words):
+        return False
+    if any(c.isdigit() for c in cand):
+        return False
+    return True
+
+def extract_visual_name(lines: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Extract person name from visual inspection zone using label proximity and layout structure.
+    """
+    visual_surname = None
+    visual_given = None
+    visual_full = None
+    conf_list = []
+
+    line_texts = [l.get("text", "").strip() for l in lines if l.get("text")]
+    line_confs = {l.get("text", "").strip(): l.get("confidence", 0.8) for l in lines if l.get("text")}
+
+    for idx, txt in enumerate(line_texts):
+        if "<" in txt and len(txt) > 20:
+            continue
+
+        # 1. Check Surname Label
+        if SURNAME_LABEL_REGEX.search(txt):
+            after_match = SURNAME_LABEL_REGEX.split(txt, maxsplit=1)[-1].strip(" :/-")
+            if is_valid_name_candidate(after_match):
+                visual_surname = normalize_name_string(after_match)
+                conf_list.append(line_confs.get(txt, 0.9))
+            else:
+                if idx + 1 < len(line_texts) and is_valid_name_candidate(line_texts[idx + 1]):
+                    visual_surname = normalize_name_string(line_texts[idx + 1])
+                    conf_list.append(line_confs.get(line_texts[idx + 1], 0.9))
+                elif idx > 0 and is_valid_name_candidate(line_texts[idx - 1]):
+                    visual_surname = normalize_name_string(line_texts[idx - 1])
+                    conf_list.append(line_confs.get(line_texts[idx - 1], 0.9))
+
+        # 2. Check Given Names Label
+        if GIVEN_NAMES_LABEL_REGEX.search(txt):
+            after_match = GIVEN_NAMES_LABEL_REGEX.split(txt, maxsplit=1)[-1].strip(" :/-")
+            if is_valid_name_candidate(after_match):
+                visual_given = normalize_name_string(after_match)
+                conf_list.append(line_confs.get(txt, 0.9))
+            else:
+                if idx + 1 < len(line_texts) and is_valid_name_candidate(line_texts[idx + 1]):
+                    visual_given = normalize_name_string(line_texts[idx + 1])
+                    conf_list.append(line_confs.get(line_texts[idx + 1], 0.9))
+                elif idx > 0 and is_valid_name_candidate(line_texts[idx - 1]):
+                    visual_given = normalize_name_string(line_texts[idx - 1])
+                    conf_list.append(line_confs.get(line_texts[idx - 1], 0.9))
+
+        # 3. Check Full Name Label
+        if FULL_NAME_LABEL_REGEX.search(txt):
+            after_match = FULL_NAME_LABEL_REGEX.split(txt, maxsplit=1)[-1].strip(" :/-")
+            if is_valid_name_candidate(after_match):
+                visual_full = normalize_name_string(after_match)
+                conf_list.append(line_confs.get(txt, 0.9))
+
+    if visual_given and visual_surname:
+        visual_full = f"{visual_given} {visual_surname}"
+    elif visual_given:
+        visual_full = visual_given
+    elif visual_surname:
+        visual_full = visual_surname
+
+    # Fallback: Detect standalone high-confidence person name candidate line
+    if not visual_full:
+        for txt in line_texts:
+            if "<" in txt or len(txt) < 3 or len(txt) > 40:
+                continue
+            if re.match(r"^[A-Za-z]{2,20}\s+[A-Za-z]{2,20}(?:\s+[A-Za-z]{2,20})?$", txt):
+                if is_valid_name_candidate(txt):
+                    visual_full = normalize_name_string(txt)
+                    conf_list.append(line_confs.get(txt, 0.9))
+                    break
+
+    avg_c = round(float(sum(conf_list) / len(conf_list)), 3) if conf_list else None
+    return {
+        "full_name": visual_full,
+        "surname": visual_surname,
+        "given_names": visual_given,
+        "confidence": avg_c,
+        "source": "VISUAL_OCR",
+        "status": "EXTRACTED" if visual_full else "NOT_DETECTED"
+    }
+
+def evaluate_name_consistency(visual_name_dict: Dict[str, Any], mrz_name_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Cross-check visual OCR extracted name against ICAO MRZ name.
+    """
+    from app.services.matching_service import jaro_winkler_similarity
+
+    vis_full = normalize_name_string(visual_name_dict.get("full_name"))
+    mrz_full = normalize_name_string(mrz_name_dict.get("full_name"))
+
+    if not vis_full and not mrz_full:
+        return {
+            "status": "NOT_AVAILABLE",
+            "visual_name": None,
+            "mrz_name": None,
+            "similarity": 0.0,
+            "details": "No person name could be extracted from either Visual OCR or MRZ."
+        }
+
+    if not vis_full:
+        return {
+            "status": "SINGLE_SOURCE_ONLY",
+            "visual_name": None,
+            "mrz_name": mrz_full,
+            "similarity": 1.0,
+            "source": "MRZ",
+            "details": "Name extracted solely from MRZ; visual label was unreadable or absent."
+        }
+
+    if not mrz_full:
+        return {
+            "status": "SINGLE_SOURCE_ONLY",
+            "visual_name": vis_full,
+            "mrz_name": None,
+            "similarity": 1.0,
+            "source": "VISUAL_OCR",
+            "details": "Name extracted solely from Visual OCR; MRZ was unreadable or absent."
+        }
+
+    if vis_full == mrz_full:
+        return {
+            "status": "CONSISTENT",
+            "visual_name": vis_full,
+            "mrz_name": mrz_full,
+            "similarity": 1.0,
+            "details": "Visual OCR name matches MRZ name."
+        }
+
+    vis_tokens = set(vis_full.split())
+    mrz_tokens = set(mrz_full.split())
+    if vis_tokens == mrz_tokens:
+        return {
+            "status": "CONSISTENT",
+            "visual_name": vis_full,
+            "mrz_name": mrz_full,
+            "similarity": 1.0,
+            "details": "Visual and MRZ names match with inverted component order."
+        }
+
+    sim = jaro_winkler_similarity(vis_full, mrz_full)
+    if sim >= 0.75:
+        return {
+            "status": "POSSIBLE_OCR_VARIATION",
+            "visual_name": vis_full,
+            "mrz_name": mrz_full,
+            "similarity": sim,
+            "details": f"Minor optical character variation between Visual ({vis_full}) and MRZ ({mrz_full})."
+        }
+    else:
+        return {
+            "status": "INCONSISTENT",
+            "visual_name": vis_full,
+            "mrz_name": mrz_full,
+            "similarity": sim,
+            "details": f"Discrepancy between Visual OCR ({vis_full}) and MRZ ({mrz_full})."
+        }
+
+def extract_fields_and_confidences(full_text: str, document_type: str, lines: List[Dict[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, Optional[float]]]:
     """
     Extract document-specific fields with field-level OCR confidence calculation.
     """
@@ -209,7 +423,11 @@ def extract_fields_and_confidences(full_text: str, document_type: str, lines: Li
         "place_of_birth": None,
         "place_of_issue": None,
         "issuing_authority": None,
-        "mrz_raw": None
+        "mrz_raw": None,
+        "name": {},
+        "visual_name": {},
+        "mrz_name": {},
+        "name_consistency": {}
     }
 
     field_conf = {
@@ -229,14 +447,14 @@ def extract_fields_and_confidences(full_text: str, document_type: str, lines: Li
     line_texts = [l.get("text", "").strip() for l in lines if l.get("text")]
     line_confs = {l.get("text", "").strip(): l.get("confidence", 0.8) for l in lines if l.get("text")}
 
-    # 1. Search for MRZ lines (P<, I<, or long lines containing < delimiters)
+    # 1. Search for MRZ lines
     mrz_candidates = [
         t for t in line_texts
         if (len(t) >= 28 and sum(1 for c in t if c.isalnum() or c == '<') >= len(t) * 0.75 and '<' in t) or t.startswith('P<') or t.startswith('I<')
     ]
-    # Prioritize standard 44-char (TD3) and 30-char (TD1) lines
     mrz_candidates.sort(key=lambda t: (len(t) == 44 or len(t) == 30, len(t)), reverse=True)
 
+    mrz_parsed_info = {}
     if len(mrz_candidates) >= 2:
         p_lines = [l for l in mrz_candidates if l.startswith("P<") or l.startswith("I<")]
         other_lines = [l for l in mrz_candidates if not (l.startswith("P<") or l.startswith("I<"))]
@@ -248,20 +466,32 @@ def extract_fields_and_confidences(full_text: str, document_type: str, lines: Li
         mrz_c1 = line_confs.get(ordered_mrz[0], 0.9)
         mrz_c2 = line_confs.get(ordered_mrz[1], 0.9)
         field_conf["mrz"] = round(float((mrz_c1 + mrz_c2) / 2.0), 3)
+
+        # Parse MRZ line 1 for name
+        mrz_res = parse_and_validate_mrz(fields["mrz_raw"])
+        if mrz_res.get("fields"):
+            mrz_parsed_info = mrz_res["fields"]
     elif len(mrz_candidates) == 1:
         fields["mrz_raw"] = mrz_candidates[0]
         field_conf["mrz"] = round(float(line_confs.get(mrz_candidates[0], 0.85)), 3)
+        mrz_res = parse_and_validate_mrz(fields["mrz_raw"])
+        if mrz_res.get("fields"):
+            mrz_parsed_info = mrz_res["fields"]
 
     # 2. Extract Document Number
     for txt in line_texts:
         if '<' in txt:
             continue
-        # Check standard passport number format: 1-2 letters + 7 digits (e.g. K9096335, X6338455, PA9821453)
         doc_match = re.search(r"\b([A-Z][0-9]{7}|[A-Z]{2}[0-9]{7}|[A-Z]{1,3}\d{6,9})\b", txt)
         if doc_match:
             fields["document_number"] = doc_match.group(1).upper()
             field_conf["document_number"] = round(float(line_confs.get(txt, 0.9)), 3)
             break
+
+    # If MRZ has valid document number and visual was missing, use MRZ
+    if not fields["document_number"] and mrz_parsed_info.get("document_number"):
+        fields["document_number"] = mrz_parsed_info["document_number"]
+        field_conf["document_number"] = field_conf.get("mrz", 0.95)
 
     # 3. Extract Dates (DOB, Issue Date, Expiry Date)
     date_regex = re.compile(
@@ -302,31 +532,82 @@ def extract_fields_and_confidences(full_text: str, document_type: str, lines: Li
         field_conf["issue_date"] = round(float(extracted_dates[1][1]), 3)
 
     # 4. Nationality / Issuing Country
-    nat_match = re.search(r"\b(FRA|USA|GBR|CAN|DEU|SGP|MYS|ARE|SRB|IND|AUS|JPN|ESP|ITA|NLD|SWE|CHE|CHN|BRA|MEX|ZAF|INDIAN|FRENCH|AMERICAN|BRITISH)\b", full_text, re.IGNORECASE)
-    if nat_match:
-        val = nat_match.group(1).upper()
-        norm_map = {"INDIAN": "IND", "FRENCH": "FRA", "AMERICAN": "USA", "BRITISH": "GBR"}
-        fields["nationality"] = norm_map.get(val, val)
-        field_conf["nationality"] = 0.95
+    if mrz_parsed_info.get("nationality"):
+        fields["nationality"] = mrz_parsed_info["nationality"]
+        field_conf["nationality"] = 0.98
+    else:
+        nat_match = re.search(r"\b(FRA|USA|GBR|CAN|DEU|SGP|MYS|SRB|IND|AUS|JPN|ESP|ITA|NLD|SWE|CHE|CHN|BRA|MEX|ZAF|INDIAN|FRENCH|AMERICAN|BRITISH|MALAYSIAN|GERMAN)\b", full_text, re.IGNORECASE)
+        if nat_match:
+            val = nat_match.group(1).upper()
+            norm_map = {"INDIAN": "IND", "FRENCH": "FRA", "AMERICAN": "USA", "BRITISH": "GBR", "MALAYSIAN": "MYS", "GERMAN": "DEU"}
+            fields["nationality"] = norm_map.get(val, val)
+            field_conf["nationality"] = 0.95
 
-    # 5. Full Name (Given Names / Surname)
-    for idx, txt in enumerate(line_texts):
-        if '<' in txt or len(txt) < 3:
-            continue
-        # Direct person name matching (2-3 words capitalized/uppercase)
-        if re.match(r"^[A-Za-z]{2,20}\s+[A-Za-z]{2,20}(?:\s+[A-Za-z]{2,20})?$", txt):
-            if not any(k in txt.upper() for k in ["REPUBLIC", "PASSPORT", "INDIA", "FRANCE", "UNION", "THESE ARE", "BY ORDER", "OF INDIA", "TYPE", "CODE"]):
-                fields["full_name"] = txt.title()
-                field_conf["full_name"] = round(float(line_confs.get(txt, 0.95)), 3)
-                break
+    # 5. Visual Name Extraction & MRZ Name Cross-Check
+    visual_name_res = extract_visual_name(lines)
+    mrz_name_res = {
+        "full_name": mrz_parsed_info.get("full_name"),
+        "surname": mrz_parsed_info.get("surname"),
+        "given_names": mrz_parsed_info.get("given_names"),
+        "confidence": field_conf.get("mrz"),
+        "source": "MRZ",
+        "status": "EXTRACTED" if mrz_parsed_info.get("full_name") else "NOT_DETECTED"
+    }
+
+    consistency_res = evaluate_name_consistency(visual_name_res, mrz_name_res)
+
+    fields["visual_name"] = visual_name_res
+    fields["mrz_name"] = mrz_name_res
+    fields["name_consistency"] = consistency_res
+
+    # For Passports: MRZ name is primary authoritative source if valid, otherwise visual OCR
+    primary_name = None
+    primary_surname = None
+    primary_given = None
+    primary_conf = 0.0
+    primary_source = "NONE"
+
+    if mrz_name_res.get("full_name"):
+        primary_name = mrz_name_res["full_name"]
+        primary_surname = mrz_name_res.get("surname")
+        primary_given = mrz_name_res.get("given_names")
+        primary_conf = mrz_name_res.get("confidence") or 0.95
+        primary_source = "MRZ"
+        # If visual also extracted components (like surname when MRZ only had given names), enrich
+        if visual_name_res.get("surname") and not primary_surname:
+            primary_surname = visual_name_res["surname"]
+    elif visual_name_res.get("full_name"):
+        primary_name = visual_name_res["full_name"]
+        primary_surname = visual_name_res.get("surname")
+        primary_given = visual_name_res.get("given_names")
+        primary_conf = visual_name_res.get("confidence") or 0.90
+        primary_source = "VISUAL_OCR"
+
+    fields["full_name"] = primary_name
+    fields["surname"] = primary_surname
+    fields["given_names"] = primary_given
+    fields["name"] = {
+        "full_name": primary_name,
+        "surname": primary_surname,
+        "given_names": primary_given,
+        "source": primary_source,
+        "confidence": primary_conf,
+        "status": "EXTRACTED" if primary_name else "REQUIRES_REVIEW"
+    }
+    field_conf["full_name"] = primary_conf
 
     # 6. Sex / Gender
-    gender_match = re.search(r"\b(?:SEX|GENDER)[:\s/]*([MFX])\b|\b([MFX])\b", full_text, re.IGNORECASE)
-    if gender_match:
-        val = (gender_match.group(1) or gender_match.group(2)).upper()
-        fields["gender"] = val
-        fields["sex"] = val
-        field_conf["gender"] = 0.95
+    if mrz_parsed_info.get("gender") and mrz_parsed_info["gender"] in ["M", "F", "X"]:
+        fields["gender"] = mrz_parsed_info["gender"]
+        fields["sex"] = mrz_parsed_info["gender"]
+        field_conf["gender"] = 0.98
+    else:
+        gender_match = re.search(r"\b(?:SEX|GENDER)[:\s/]*([MFX])\b", full_text, re.IGNORECASE)
+        if gender_match:
+            val = gender_match.group(1).upper()
+            fields["gender"] = val
+            fields["sex"] = val
+            field_conf["gender"] = 0.95
 
     # 7. Place of Birth / Place of Issue
     for idx, txt in enumerate(line_texts):
@@ -335,12 +616,12 @@ def extract_fields_and_confidences(full_text: str, document_type: str, lines: Li
         if any(k in txt.lower() for k in ["place of birth", "pob", "bith"]):
             if idx + 1 < len(line_texts):
                 cand = line_texts[idx + 1].strip()
-                if not any(k in cand.upper() for k in ["REPUBLIC", "PASSPORT", "INDIA", "TYPE"]):
+                if not any(k in cand.upper() for k in DOCUMENT_STOP_WORDS) and cand != primary_name:
                     fields["place_of_birth"] = cand
         elif any(k in txt.lower() for k in ["place of issue", "poi"]):
             if idx + 1 < len(line_texts):
                 cand = line_texts[idx + 1].strip()
-                if not any(k in cand.upper() for k in ["REPUBLIC", "PASSPORT", "INDIA", "TYPE"]):
+                if not any(k in cand.upper() for k in DOCUMENT_STOP_WORDS) and cand != primary_name:
                     fields["place_of_issue"] = cand
 
     return fields, field_conf

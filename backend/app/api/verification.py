@@ -178,23 +178,39 @@ def get_verification_dossier(verification_id: str, db: Session = Depends(get_db)
         "officerNotes": record.officer_notes or "Screening processed per standard protocol.",
         "ocr_details": {
             "fullName": ocr_f.get("full_name") or "Not Available",
+            "surname": ocr_f.get("surname"),
+            "givenNames": ocr_f.get("given_names"),
+            "name": ocr_f.get("name", {}),
+            "visualName": ocr_f.get("visual_name", {}),
+            "mrzName": ocr_f.get("mrz_name", {}),
+            "nameConsistency": ocr_f.get("name_consistency", {}),
             "documentNumber": ocr_f.get("document_number") or "Not Available",
             "dob": ocr_f.get("date_of_birth") or "Not Available",
             "nationality": ocr_f.get("nationality") or "Not Available",
             "documentType": doc_type,
             "issueDate": ocr_f.get("issue_date") or "Not Available",
             "expiryDate": ocr_f.get("expiry_date") or "Not Available",
-            "mrzRaw": ocr_f.get("mrz_raw")
+            "mrzRaw": ocr_f.get("mrz_raw"),
+            "confidence": record.ocr_data.get("confidence") if record.ocr_data else None,
+            "qualityScore": record.ocr_data.get("quality_score") if record.ocr_data else "GOOD"
         },
         "ocrDetails": {
             "fullName": ocr_f.get("full_name") or "Not Available",
+            "surname": ocr_f.get("surname"),
+            "givenNames": ocr_f.get("given_names"),
+            "name": ocr_f.get("name", {}),
+            "visualName": ocr_f.get("visual_name", {}),
+            "mrzName": ocr_f.get("mrz_name", {}),
+            "nameConsistency": ocr_f.get("name_consistency", {}),
             "documentNumber": ocr_f.get("document_number") or "Not Available",
             "dob": ocr_f.get("date_of_birth") or "Not Available",
             "nationality": ocr_f.get("nationality") or "Not Available",
             "documentType": doc_type,
             "issueDate": ocr_f.get("issue_date") or "Not Available",
             "expiryDate": ocr_f.get("expiry_date") or "Not Available",
-            "mrzRaw": ocr_f.get("mrz_raw")
+            "mrzRaw": ocr_f.get("mrz_raw"),
+            "confidence": record.ocr_data.get("confidence") if record.ocr_data else None,
+            "qualityScore": record.ocr_data.get("quality_score") if record.ocr_data else "GOOD"
         },
         "tamper_forensics": {
             "image_integrity": image_integrity_val,

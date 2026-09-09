@@ -38,19 +38,83 @@ export default function OCRResultCard({ ocrData, onHoverField }) {
         </div>
       </div>
 
-      {/* Forensic Extracted Fields Grid */}
-      <div className="forensic-field-list">
-        <div
-          className="forensic-field-item"
-          onMouseEnter={() => onHoverField && onHoverField('name')}
-          onMouseLeave={() => onHoverField && onHoverField(null)}
-        >
-          <span className="field-label">Full Name</span>
-          <span className="field-value" style={{ fontWeight: 700 }}>
-            {ocrData.fullName || '—'}
+      {/* Identity Information & Structured Name Card */}
+      <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.05em' }}>
+            Identity Information
           </span>
+          {ocrData.nameConsistency?.status && (
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '999px',
+                background:
+                  ocrData.nameConsistency.status === 'CONSISTENT'
+                    ? '#dcfce7'
+                    : ocrData.nameConsistency.status === 'POSSIBLE_OCR_VARIATION'
+                    ? '#fef3c7'
+                    : ocrData.nameConsistency.status === 'INCONSISTENT'
+                    ? '#fee2e2'
+                    : '#f1f5f9',
+                color:
+                  ocrData.nameConsistency.status === 'CONSISTENT'
+                    ? '#15803d'
+                    : ocrData.nameConsistency.status === 'POSSIBLE_OCR_VARIATION'
+                    ? '#b45309'
+                    : ocrData.nameConsistency.status === 'INCONSISTENT'
+                    ? '#b91c1c'
+                    : '#64748b',
+                border: '1px solid currentColor',
+              }}
+            >
+              {ocrData.nameConsistency.status.replace(/_/g, ' ')}
+            </span>
+          )}
         </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '10px' }}>
+          <div>
+            <span className="field-label" style={{ fontSize: '0.7rem' }}>Full Name</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+              {ocrData.fullName || '—'}
+            </span>
+          </div>
+          <div>
+            <span className="field-label" style={{ fontSize: '0.7rem' }}>Surname</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+              {ocrData.surname || '—'}
+            </span>
+          </div>
+          <div>
+            <span className="field-label" style={{ fontSize: '0.7rem' }}>Given Names</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+              {ocrData.givenNames || '—'}
+            </span>
+          </div>
+        </div>
+
+        {/* Name Sources Comparison */}
+        {(ocrData.visualName?.full_name || ocrData.mrzName?.full_name) && (
+          <div style={{ background: '#ffffff', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0', fontSize: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Visual OCR: </span>
+                <strong style={{ color: '#0f172a' }}>{ocrData.visualName?.full_name || 'Not detected'}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>MRZ: </span>
+                <strong style={{ color: '#0f172a' }}>{ocrData.mrzName?.full_name || 'Not detected'}</strong>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Forensic Extracted Fields Grid */}
+      <div className="forensic-field-list">
         <div
           className="forensic-field-item"
           onMouseEnter={() => onHoverField && onHoverField('doc_num')}
