@@ -1,6 +1,6 @@
 """
 MRZ Parsing & Checksum Validation Service
-Strictly follows ICAO Doc 9303 Part 3, 4, 7 specifications.
+Strictly follows ICAO Doc 9303 specifications (Part 3, 4, 7).
 Computes 7-3-1 weighted check digits on:
 - Document number
 - Date of birth (YYMMDD)
@@ -14,7 +14,7 @@ Supports:
 
 import re
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, List
 
 WEIGHTS = [7, 3, 1]
 
@@ -36,14 +36,33 @@ def calculate_check_digit(data_str: str) -> int:
         total += mrz_char_value(char) * weight
     return total % 10
 
+def sanitize_alpha_mrz(text: str) -> str:
+    """Disambiguate OCR character confusions in alphabetic country/name fields."""
+    replacements = {"1": "I", "0": "O", "5": "S", "8": "B", "2": "Z"}
+    res = []
+    for c in text:
+        res.append(replacements.get(c, c))
+    return "".join(res)
+
+def sanitize_numeric_mrz(text: str) -> str:
+    """Disambiguate OCR character confusions in strictly numeric date/checksum fields."""
+    replacements = {"O": "0", "o": "0", "I": "1", "i": "1", "l": "1", "L": "1", "Z": "2", "z": "2", "S": "5", "s": "5", "B": "8", "b": "8"}
+    res = []
+    for c in text:
+        res.append(replacements.get(c, c))
+    return "".join(res)
+
 def format_mrz_date(yymmdd: str, is_expiry: bool = False) -> Optional[str]:
     """Convert 6-digit MRZ date (YYMMDD) to ISO YYYY-MM-DD."""
-    if not yymmdd or len(yymmdd) < 6 or not yymmdd.isdigit():
+    if not yymmdd or len(yymmdd) < 6:
+        return None
+    cleaned = sanitize_numeric_mrz(yymmdd)
+    if not cleaned.isdigit() or len(cleaned) < 6:
         return None
     try:
-        yy = int(yymmdd[:2])
-        mm = int(yymmdd[2:4])
-        dd = int(yymmdd[4:6])
+        yy = int(cleaned[:2])
+        mm = int(cleaned[2:4])
+        dd = int(cleaned[4:6])
         if mm < 1 or mm > 12 or dd < 1 or dd > 31:
             return None
         current_year = datetime.utcnow().year % 100
@@ -90,20 +109,16 @@ def parse_and_validate_mrz(mrz_text: Optional[str]) -> Dict[str, Any]:
         }
 
     # If lines are inverted (e.g. Line 2 detected before Line 1), reorder
-    if raw_lines[1].startswith("P<") or raw_lines[1].startswith("I<"):
+    if (raw_lines[1].startswith("P<") or raw_lines[1].startswith("I<")) and not (raw_lines[0].startswith("P<") or raw_lines[0].startswith("I<")):
         raw_lines[0], raw_lines[1] = raw_lines[1], raw_lines[0]
 
     # TD3: Passport (2 lines of ~44 chars, tolerant to 35-44 chars in real OCR)
     if len(raw_lines) >= 2 and (raw_lines[0].startswith("P<") or len(raw_lines[0]) >= 35):
-        # Pad to 44 if needed
         line1 = raw_lines[0].ljust(44, "<")[:44]
         line2 = raw_lines[1].ljust(44, "<")[:44]
 
         doc_type = line1[0:2].replace("<", "")
-        issuing_country = line1[2:5].replace("<", "")
-        # Common OCR fixes for country code
-        if issuing_country == "1ND":
-            issuing_country = "IND"
+        issuing_country = sanitize_alpha_mrz(line1[2:5].replace("<", ""))
 
         name_section = line1[5:44]
         name_parts = name_section.split("<<")
@@ -113,18 +128,18 @@ def parse_and_validate_mrz(mrz_text: Optional[str]) -> Dict[str, Any]:
 
         doc_num_raw = line2[0:9]
         doc_num = doc_num_raw.replace("<", "")
-        doc_num_check = line2[9]
+        doc_num_check = sanitize_numeric_mrz(line2[9])
 
-        nationality = line2[10:13].replace("<", "")
-        if nationality == "1ND":
-            nationality = "IND"
-
-        dob_raw = line2[13:19]
-        dob_check = line2[19]
+        nationality = sanitize_alpha_mrz(line2[10:13].replace("<", ""))
+        dob_raw = sanitize_numeric_mrz(line2[13:19])
+        dob_check = sanitize_numeric_mrz(line2[19])
         gender = line2[20].replace("<", "X")
-        expiry_raw = line2[21:27]
-        expiry_check = line2[27]
-        composite_check = line2[43]
+        if gender not in ["M", "F", "X"]:
+            gender = "X"
+
+        expiry_raw = sanitize_numeric_mrz(line2[21:27])
+        expiry_check = sanitize_numeric_mrz(line2[27])
+        composite_check = sanitize_numeric_mrz(line2[43])
 
         expected_doc_check = calculate_check_digit(doc_num_raw)
         expected_dob_check = calculate_check_digit(dob_raw)
@@ -180,17 +195,17 @@ def parse_and_validate_mrz(mrz_text: Optional[str]) -> Dict[str, Any]:
         line3 = raw_lines[2].ljust(30, "<")[:30]
 
         doc_type = line1[0:2].replace("<", "")
-        issuing_country = line1[2:5].replace("<", "")
+        issuing_country = sanitize_alpha_mrz(line1[2:5].replace("<", ""))
         doc_num_raw = line1[5:14]
         doc_num = doc_num_raw.replace("<", "")
-        doc_num_check = line1[14]
+        doc_num_check = sanitize_numeric_mrz(line1[14])
 
-        dob_raw = line2[0:6]
-        dob_check = line2[6]
+        dob_raw = sanitize_numeric_mrz(line2[0:6])
+        dob_check = sanitize_numeric_mrz(line2[6])
         gender = line2[7].replace("<", "X")
-        expiry_raw = line2[8:14]
-        expiry_check = line2[14]
-        nationality = line2[15:18].replace("<", "")
+        expiry_raw = sanitize_numeric_mrz(line2[8:14])
+        expiry_check = sanitize_numeric_mrz(line2[14])
+        nationality = sanitize_alpha_mrz(line2[15:18].replace("<", ""))
 
         name_parts = line3.split("<<")
         surname = name_parts[0].replace("<", " ").strip() if len(name_parts) > 0 else ""
