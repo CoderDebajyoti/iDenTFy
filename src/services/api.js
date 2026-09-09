@@ -72,7 +72,7 @@ export async function uploadDocument(documentFile, documentType) {
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}/api/v1/document/upload`, {
+    response = await fetch(`${API_BASE_URL}/api/v1/documents/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -238,6 +238,19 @@ export async function getVerificationDetails(verificationId) {
     ocrDetails: data.ocrDetails || data.ocr_details,
     tamperForensics: data.tamperForensics || data.tamper_forensics
   };
+}
+
+/**
+ * Retrieve registered government verification providers and connectivity status.
+ */
+export async function getGovernmentProviders() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/government/providers`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (err) {
+    return [];
+  }
 }
 
 export { API_BASE_URL };

@@ -3,7 +3,7 @@ Rule-Based Document Decision Engine
 Multi-signal deterministic decision logic combining:
 - Document status from registry (Blacklisted, Suspended, Expired)
 - Date validation & expiration
-- Database matching tier (Strong Match, Partial Match, Unindexed)
+- Database/Government provider matching tier (Strong Match, Exact, Partial Match, Unindexed)
 - OCR extraction confidence & required fields
 - MRZ checksums
 - Tampering forensic indicators
@@ -28,7 +28,7 @@ def evaluate_document_decision(
 
     # 1. Hard Security Overrides
     if validation_result.get("is_blacklisted"):
-        reasons.append("Document explicitly blacklisted in border security registry.")
+        reasons.append("Document explicitly blacklisted in security registry.")
         return "BLACKLISTED", reasons
 
     if validation_result.get("is_suspended"):
@@ -39,24 +39,26 @@ def evaluate_document_decision(
         reasons.append("Document expiration date has passed.")
         return "EXPIRED", reasons
 
-    # 2. Tampering & Forgery Detection
+    # 2. Critical Validation / Checksum Failures (NOT_VERIFIED)
+    mrz_detected = mrz_result.get("mrz_detected", mrz_result.get("detected", False))
+    mrz_valid = mrz_result.get("mrz_valid", mrz_result.get("valid", True))
+    if mrz_detected and not mrz_valid:
+        reasons.append("MRZ check digit checksum mismatch: Cryptographic/checksum verification failed.")
+        return "NOT_VERIFIED", reasons
+
+    # 3. Tampering & Forgery Detection (NOT_VERIFIED)
     if tampering_result.get("tampering_detected"):
         reasons.extend(tampering_result.get("indicators", []))
         reasons.append("High probability of digital alteration or forensic manipulation.")
         return "NOT_VERIFIED", reasons
 
-    # 3. Database Matching & Registry Cross-Check
-    db_match = matching_result.get("database_match")
+    # 4. Database Matching & Registry Cross-Check
+    db_match = matching_result.get("database_match") or matching_result.get("registry_match")
     match_type = matching_result.get("match_type")
     name_sim = matching_result.get("name_similarity", 0.0)
 
-    # 4. MRZ Checksum check (for passports)
-    mrz_valid = mrz_result.get("valid", True)
-    if mrz_result.get("detected") and not mrz_valid:
-        reasons.append("MRZ check digit mismatch detected.")
-
     # 5. Synthesis Rules
-    if db_match and match_type == "strong_match" and mrz_valid and not tampering_result.get("requires_review"):
+    if db_match and match_type in ("strong_match", "exact") and mrz_valid and not tampering_result.get("requires_review"):
         reasons.append("Strong registry match, valid credentials, and clean forensic integrity.")
         return "VERIFIED", reasons
 

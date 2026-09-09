@@ -12,3 +12,7 @@ dist/
 .env
 .env.*
 !.env.example
+
+
+demo_samples
+backend/demo_samples

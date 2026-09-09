@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Tuple
 
-ALLOWED_MIME_TYPES = {"image/jpeg", "image/png"}
+ALLOWED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/pjpeg"}
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 # Magic byte signatures

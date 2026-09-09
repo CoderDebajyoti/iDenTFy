@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     UPLOAD_DIR: str = os.path.join(_BASE_DIR, "uploads")
     DOCUMENTS_DIR: str = os.path.join(UPLOAD_DIR, "documents")
+    TEMP_DIR: str = os.path.join(UPLOAD_DIR, "temp")
     FACES_DIR: str = os.path.join(UPLOAD_DIR, "faces")
 
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB
@@ -65,5 +66,6 @@ except Exception as e:
 
 # Ensure upload directories exist
 os.makedirs(settings.DOCUMENTS_DIR, exist_ok=True)
+os.makedirs(settings.TEMP_DIR, exist_ok=True)
 os.makedirs(settings.FACES_DIR, exist_ok=True)
 
