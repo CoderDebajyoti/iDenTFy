@@ -85,7 +85,7 @@ def process_document_upload(
 
     # If MRZ found fields, supplement any missing visual fields
     if mrz_res.get("detected") and mrz_res.get("fields"):
-        for k in ["full_name", "document_number", "nationality", "gender", "sex"]:
+        for k in ["full_name", "document_number", "nationality", "gender", "sex", "date_of_birth", "expiry_date"]:
             if not ocr_res["fields"].get(k) and mrz_res["fields"].get(k):
                 ocr_res["fields"][k] = mrz_res["fields"][k]
 
@@ -206,6 +206,7 @@ def process_document_upload(
             "fields": ocr_res["fields"],
             "text": ocr_res["text"],
             "full_text": ocr_res["full_text"],
+            "text_lines": ocr_res.get("text_lines", []),
             "confidence": ocr_res["confidence"],
             "average_confidence": ocr_res["average_confidence"],
             "engine": ocr_res["engine"]

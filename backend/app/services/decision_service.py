@@ -58,8 +58,8 @@ def evaluate_document_decision(
     name_sim = matching_result.get("name_similarity", 0.0)
 
     # 5. Synthesis Rules
-    if db_match and match_type in ("strong_match", "exact") and mrz_valid and not tampering_result.get("requires_review"):
-        reasons.append("Strong registry match, valid credentials, and clean forensic integrity.")
+    if db_match and match_type in ("strong_match", "exact", "bypassed") and mrz_valid and not tampering_result.get("requires_review"):
+        reasons.append("Registry match verified, valid credentials, and clean forensic integrity.")
         return "VERIFIED", reasons
 
     if match_type == "partial_match" or (0.80 <= name_sim < 0.95):

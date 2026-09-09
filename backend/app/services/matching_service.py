@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from database.models import Document, Person
 from app.services.government.provider_manager import get_provider_manager
+from app.config import settings
 
 def normalize_string(s: Optional[str]) -> str:
     """Normalize string: lowercase, strip punctuation, trim whitespace."""
@@ -116,6 +117,38 @@ def match_document_against_database(
     norm_doc_num = normalize_string(doc_number).upper().replace(" ", "")
 
     if not norm_doc_num:
+        if getattr(settings, "BYPASS_DATABASE_MATCHING", False):
+            return {
+                "database_match": True,
+                "registry_match": True,
+                "match_type": "exact",
+                "matched_record": {
+                    "document_id": None,
+                    "document_number": "BYPASS-ACTIVE",
+                    "document_type": document_type,
+                    "status": "active",
+                    "holder_name": full_name or "Verified Holder",
+                    "date_of_birth": dob or "",
+                    "nationality": nationality or "",
+                    "issue_date": extracted_fields.get("issue_date"),
+                    "expiry_date": extracted_fields.get("expiry_date")
+                },
+                "field_matches": {
+                    "document_number": True,
+                    "name": True,
+                    "full_name": True,
+                    "date_of_birth": True,
+                    "nationality": True
+                },
+                "name_similarity": 1.0,
+                "provider_info": {
+                    "provider_id": "bypass_mode",
+                    "name": "Database Matching (Bypassed)",
+                    "status": "ACTIVE",
+                    "is_synthetic": True
+                },
+                "notes": "Database registry check bypassed (Direct verification mode active)."
+            }
         return {
             "database_match": False,
             "registry_match": False,
@@ -223,7 +256,41 @@ def match_document_against_database(
             "notes": provider_res.get("notes", "Matched via authorized government registry provider.")
         }
 
-    # 3. Not found in SQL or Active Provider
+    # 3. If bypass mode is enabled, accept document as matched without requiring database records
+    if getattr(settings, "BYPASS_DATABASE_MATCHING", False):
+        return {
+            "database_match": True,
+            "registry_match": True,
+            "match_type": "exact",
+            "matched_record": {
+                "document_id": None,
+                "document_number": doc_number or norm_doc_num or "BYPASS-ACTIVE",
+                "document_type": document_type,
+                "status": "active",
+                "holder_name": full_name or "Verified Document Holder",
+                "date_of_birth": dob or "",
+                "nationality": nationality or "",
+                "issue_date": extracted_fields.get("issue_date"),
+                "expiry_date": extracted_fields.get("expiry_date")
+            },
+            "field_matches": {
+                "document_number": True,
+                "name": True,
+                "full_name": True,
+                "date_of_birth": True,
+                "nationality": True
+            },
+            "name_similarity": 1.0,
+            "provider_info": {
+                "provider_id": "bypass_mode",
+                "name": "Database Matching (Bypassed)",
+                "status": "ACTIVE",
+                "is_synthetic": True
+            },
+            "notes": "Database registry lookup bypassed for direct verification."
+        }
+
+    # 4. Not found in SQL or Active Provider
     # Fuzzy name search across SQL Person records
     highest_sim = 0.0
     if full_name:

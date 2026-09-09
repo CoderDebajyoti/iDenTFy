@@ -91,10 +91,20 @@ export function VerificationProvider({ children }) {
         documentNumber: fields.document_number || 'Not Available',
         dob: fields.date_of_birth || 'Not Available',
         nationality: fields.nationality || 'Not Available',
+        gender: fields.gender || fields.sex || 'Not Available',
         documentType: data.document_type || selectedDocumentType,
         issueDate: fields.issue_date || 'Not Available',
         expiryDate: fields.expiry_date || 'Not Available',
+        placeOfBirth: fields.place_of_birth || null,
+        placeOfIssue: fields.place_of_issue || null,
+        issuingAuthority: fields.issuing_authority || null,
         mrzRaw: fields.mrz_raw || null,
+        confidence: data.ocr_result?.confidence || 0,
+        averageConfidence: data.ocr_result?.average_confidence || 0,
+        engine: data.ocr_result?.engine || 'RapidOCR-ONNX',
+        textLines: data.ocr_result?.text_lines || [],
+        fullText: data.ocr_result?.full_text || '',
+        mrzResult: data.mrz_result || null,
       });
 
       // Store genuine Tampering Forensics

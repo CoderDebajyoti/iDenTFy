@@ -65,9 +65,13 @@ def test_database_spelling_variation_match():
     finally:
         db.close()
 
-def test_database_unindexed_document():
+from app.config import settings
+
+def test_database_unindexed_document_strict():
     db = SessionLocal()
+    original_bypass = getattr(settings, "BYPASS_DATABASE_MATCHING", False)
     try:
+        settings.BYPASS_DATABASE_MATCHING = False
         fields = {
             "document_number": "NONEXISTENT999",
             "full_name": "Unknown Person",
@@ -78,4 +82,23 @@ def test_database_unindexed_document():
         assert res["database_match"] is False
         assert res["match_type"] == "not_verified"
     finally:
+        settings.BYPASS_DATABASE_MATCHING = original_bypass
+        db.close()
+
+def test_database_bypass_mode():
+    db = SessionLocal()
+    original_bypass = getattr(settings, "BYPASS_DATABASE_MATCHING", False)
+    try:
+        settings.BYPASS_DATABASE_MATCHING = True
+        fields = {
+            "document_number": "NONEXISTENT999",
+            "full_name": "Unknown Person",
+            "date_of_birth": "1990-01-01",
+            "nationality": "USA"
+        }
+        res = match_document_against_database(db, fields, "passport")
+        assert res["database_match"] is True
+        assert res["match_type"] == "exact"
+    finally:
+        settings.BYPASS_DATABASE_MATCHING = original_bypass
         db.close()

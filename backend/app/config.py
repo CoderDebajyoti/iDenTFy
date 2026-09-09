@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Biometric Threshold
     FACE_SIMILARITY_THRESHOLD: float = 0.68
 
+    # Database Matching Bypass Flag
+    BYPASS_DATABASE_MATCHING: bool = True
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",

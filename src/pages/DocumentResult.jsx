@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useVerification } from '../context/VerificationContext';
 import StatusBadge from '../components/common/StatusBadge';
@@ -7,6 +7,7 @@ import OCRResultCard from '../components/verification/OCRResultCard';
 import MatchingResultCard from '../components/verification/MatchingResultCard';
 import TamperResultCard from '../components/verification/TamperResultCard';
 import FaceNoticeCard from '../components/verification/FaceNoticeCard';
+import DocumentTrackingCard from '../components/verification/DocumentTrackingCard';
 import Button from '../components/common/Button';
 import { RotateCcw, ShieldCheck, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
 
@@ -20,8 +21,11 @@ export default function DocumentResult() {
     matchingResult,
     tamperResult,
     verificationId,
+    filePreviewUrl,
     resetWorkflow,
   } = useVerification();
+
+  const [highlightedField, setHighlightedField] = useState(null);
 
   const isDocumentPassed = documentStatus === 'verified';
   const isReview = documentStatus === 'requires_review';
@@ -112,9 +116,20 @@ export default function DocumentResult() {
         </div>
       </div>
 
+      {/* Live Document OCR Tracking Visualizer (If preview image is present) */}
+      {filePreviewUrl && (
+        <div style={{ marginBottom: '24px' }}>
+          <DocumentTrackingCard
+            previewUrl={filePreviewUrl}
+            textLines={ocrResult?.textLines || []}
+            highlightedField={highlightedField}
+          />
+        </div>
+      )}
+
       {/* Forensic Analysis Cards Grid */}
       <div className="result-cards-grid">
-        <OCRResultCard ocrData={ocrResult} />
+        <OCRResultCard ocrData={ocrResult} onHoverField={setHighlightedField} />
         <MatchingResultCard matchingData={matchingResult} />
         <TamperResultCard tamperData={tamperResult} />
 
@@ -135,6 +150,7 @@ export default function DocumentResult() {
           background: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-lg)',
+          marginTop: '24px',
         }}
       >
         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
