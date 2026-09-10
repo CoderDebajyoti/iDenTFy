@@ -136,18 +136,23 @@ export function VerificationProvider({ children }) {
 
       // Store genuine Database Match Result
       const mr = data.matching_result || {};
-      let dbMatchDisplay = "No Match";
-      if (mr.database_match) {
+      let dbMatchDisplay = "NO MATCH";
+      let fieldMatchDisplay = "No Matching Record in Database";
+      if (mr.match_type === "skipped" || (!mr.database_match && mr.notes?.includes("disabled"))) {
+        dbMatchDisplay = "SKIPPED";
+        fieldMatchDisplay = mr.notes || "Database matching is temporarily disabled in prototype mode.";
+      } else if (mr.database_match) {
         dbMatchDisplay = mr.match_type ? mr.match_type.replace(/_/g, ' ').toUpperCase() : "MATCH CONFIRMED";
+        fieldMatchDisplay = "Matched in Central Registry";
       } else if (mr.match_type) {
         dbMatchDisplay = mr.match_type.replace(/_/g, ' ').toUpperCase();
       }
 
       setMatchingResult({
         databaseMatch: dbMatchDisplay,
-        fieldMatch: mr.database_match ? "Matched in Central Registry" : "No Matching Record in Database",
-        nameSimilarity: mr.name_similarity !== undefined ? `${Math.round(mr.name_similarity * 100)}%` : "0%",
-        documentNumberMatch: mr.field_matches?.document_number ? "Matched in Registry" : "Unmatched in Registry"
+        fieldMatch: fieldMatchDisplay,
+        nameSimilarity: mr.match_type === "skipped" ? "N/A (Skipped)" : (mr.name_similarity !== undefined ? `${Math.round(mr.name_similarity * 100)}%` : "0%"),
+        documentNumberMatch: mr.match_type === "skipped" ? "N/A (Skipped)" : (mr.field_matches?.document_number ? "Matched in Registry" : "Unmatched in Registry")
       });
 
       setRiskLevel(data.risk_level || 'Pending');

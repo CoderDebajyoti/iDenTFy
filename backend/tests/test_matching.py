@@ -32,9 +32,13 @@ def test_fuzzy_name_matching():
     dist = levenshtein_distance("Aarav", "Arav")
     assert dist == 1
 
+from app.config import settings
+
 def test_database_exact_match():
     db = SessionLocal()
+    original_flag = settings.DATABASE_MATCHING_ENABLED
     try:
+        settings.DATABASE_MATCHING_ENABLED = True
         fields = {
             "document_number": "Z6549210",
             "full_name": "Aarav Sharma",
@@ -48,11 +52,14 @@ def test_database_exact_match():
         assert res["field_matches"]["name"] is True
         assert res["name_similarity"] >= 0.95
     finally:
+        settings.DATABASE_MATCHING_ENABLED = original_flag
         db.close()
 
 def test_database_spelling_variation_match():
     db = SessionLocal()
+    original_flag = settings.DATABASE_MATCHING_ENABLED
     try:
+        settings.DATABASE_MATCHING_ENABLED = True
         fields = {
             "document_number": "ID5502914",
             "full_name": "Priyaa Patel", # Spelling variation of Priya Patel
@@ -63,15 +70,14 @@ def test_database_spelling_variation_match():
         assert res["database_match"] is True
         assert res["name_similarity"] >= 0.85
     finally:
+        settings.DATABASE_MATCHING_ENABLED = original_flag
         db.close()
-
-from app.config import settings
 
 def test_database_unindexed_document_strict():
     db = SessionLocal()
-    original_bypass = getattr(settings, "BYPASS_DATABASE_MATCHING", False)
+    original_flag = settings.DATABASE_MATCHING_ENABLED
     try:
-        settings.BYPASS_DATABASE_MATCHING = False
+        settings.DATABASE_MATCHING_ENABLED = True
         fields = {
             "document_number": "NONEXISTENT999",
             "full_name": "Unknown Person",
@@ -82,23 +88,25 @@ def test_database_unindexed_document_strict():
         assert res["database_match"] is False
         assert res["match_type"] == "not_verified"
     finally:
-        settings.BYPASS_DATABASE_MATCHING = original_bypass
+        settings.DATABASE_MATCHING_ENABLED = original_flag
         db.close()
 
-def test_database_bypass_mode():
+def test_database_disabled_mode():
     db = SessionLocal()
-    original_bypass = getattr(settings, "BYPASS_DATABASE_MATCHING", False)
+    original_flag = settings.DATABASE_MATCHING_ENABLED
     try:
-        settings.BYPASS_DATABASE_MATCHING = True
+        settings.DATABASE_MATCHING_ENABLED = False
         fields = {
-            "document_number": "NONEXISTENT999",
-            "full_name": "Unknown Person",
-            "date_of_birth": "1990-01-01",
-            "nationality": "USA"
+            "document_number": "Z6549210",
+            "full_name": "Aarav Sharma",
+            "date_of_birth": "1995-08-15",
+            "nationality": "IND"
         }
         res = match_document_against_database(db, fields, "passport")
-        assert res["database_match"] is True
-        assert res["match_type"] == "exact"
+        assert res["database_match"] is False
+        assert res["registry_match"] is False
+        assert res["match_type"] == "skipped"
+        assert "disabled" in res["notes"].lower()
     finally:
-        settings.BYPASS_DATABASE_MATCHING = original_bypass
+        settings.DATABASE_MATCHING_ENABLED = original_flag
         db.close()

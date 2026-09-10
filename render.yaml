@@ -22,8 +22,6 @@ services:
         value: https://identfy-frontend.onrender.com
       - key: DATABASE_MATCHING_ENABLED
         value: "false"
-      - key: BYPASS_DATABASE_MATCHING
-        value: "true"
       - key: FACE_SIMILARITY_THRESHOLD
         value: "0.68"
       - key: ENV

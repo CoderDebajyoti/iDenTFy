@@ -105,6 +105,30 @@ def match_document_against_database(
     1. Check registered records in SQL database (for existing tests and direct database seed)
     2. Check active Government Verification Provider (TestAuthorizedRegistryProvider, API Setu, DigiLocker)
     """
+    # If database matching is disabled in prototype mode, skip without making external/database queries
+    if not getattr(settings, "DATABASE_MATCHING_ENABLED", False):
+        return {
+            "database_match": False,
+            "registry_match": False,
+            "match_type": "skipped",
+            "matched_record": None,
+            "field_matches": {
+                "document_number": False,
+                "name": False,
+                "full_name": False,
+                "date_of_birth": False,
+                "nationality": False
+            },
+            "name_similarity": 0.0,
+            "provider_info": {
+                "provider_id": "disabled",
+                "name": "Database Matching (Disabled)",
+                "status": "DISABLED",
+                "is_synthetic": False
+            },
+            "notes": "Database matching is temporarily disabled in prototype mode."
+        }
+
     provider_mgr = get_provider_manager()
     active_provider = provider_mgr.get_active_provider()
     provider_info = active_provider.get_provider_status()
@@ -117,38 +141,6 @@ def match_document_against_database(
     norm_doc_num = normalize_string(doc_number).upper().replace(" ", "")
 
     if not norm_doc_num:
-        if getattr(settings, "BYPASS_DATABASE_MATCHING", False):
-            return {
-                "database_match": True,
-                "registry_match": True,
-                "match_type": "exact",
-                "matched_record": {
-                    "document_id": None,
-                    "document_number": "BYPASS-ACTIVE",
-                    "document_type": document_type,
-                    "status": "active",
-                    "holder_name": full_name or "Verified Holder",
-                    "date_of_birth": dob or "",
-                    "nationality": nationality or "",
-                    "issue_date": extracted_fields.get("issue_date"),
-                    "expiry_date": extracted_fields.get("expiry_date")
-                },
-                "field_matches": {
-                    "document_number": True,
-                    "name": True,
-                    "full_name": True,
-                    "date_of_birth": True,
-                    "nationality": True
-                },
-                "name_similarity": 1.0,
-                "provider_info": {
-                    "provider_id": "bypass_mode",
-                    "name": "Database Matching (Bypassed)",
-                    "status": "ACTIVE",
-                    "is_synthetic": True
-                },
-                "notes": "Database registry check bypassed (Direct verification mode active)."
-            }
         return {
             "database_match": False,
             "registry_match": False,
@@ -256,41 +248,7 @@ def match_document_against_database(
             "notes": provider_res.get("notes", "Matched via authorized government registry provider.")
         }
 
-    # 3. If bypass mode is enabled, accept document as matched without requiring database records
-    if getattr(settings, "BYPASS_DATABASE_MATCHING", False):
-        return {
-            "database_match": True,
-            "registry_match": True,
-            "match_type": "exact",
-            "matched_record": {
-                "document_id": None,
-                "document_number": doc_number or norm_doc_num or "BYPASS-ACTIVE",
-                "document_type": document_type,
-                "status": "active",
-                "holder_name": full_name or "Verified Document Holder",
-                "date_of_birth": dob or "",
-                "nationality": nationality or "",
-                "issue_date": extracted_fields.get("issue_date"),
-                "expiry_date": extracted_fields.get("expiry_date")
-            },
-            "field_matches": {
-                "document_number": True,
-                "name": True,
-                "full_name": True,
-                "date_of_birth": True,
-                "nationality": True
-            },
-            "name_similarity": 1.0,
-            "provider_info": {
-                "provider_id": "bypass_mode",
-                "name": "Database Matching (Bypassed)",
-                "status": "ACTIVE",
-                "is_synthetic": True
-            },
-            "notes": "Database registry lookup bypassed for direct verification."
-        }
-
-    # 4. Not found in SQL or Active Provider
+    # 3. Not found in SQL or Active Provider
     # Fuzzy name search across SQL Person records
     highest_sim = 0.0
     if full_name:

@@ -36,9 +36,8 @@ class Settings(BaseSettings):
     # Biometric Threshold
     FACE_SIMILARITY_THRESHOLD: float = 0.68
 
-    # Database Matching Flags (Production screening keeps database matching disabled / bypassed by default)
+    # Database Matching Flags (Production screening keeps database matching disabled by default in prototype mode)
     DATABASE_MATCHING_ENABLED: bool = False
-    BYPASS_DATABASE_MATCHING: bool = True
 
     # Frontend URL & CORS
     FRONTEND_URL: str = ""

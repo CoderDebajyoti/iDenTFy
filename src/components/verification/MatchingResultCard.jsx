@@ -4,9 +4,16 @@ import { Database, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 export default function MatchingResultCard({ matchingData }) {
   if (!matchingData) return null;
 
-  const isMatched = !String(matchingData.databaseMatch || '').toLowerCase().includes('discrep') &&
-                    !String(matchingData.databaseMatch || '').toLowerCase().includes('not found') &&
-                    !String(matchingData.databaseMatch || '').toLowerCase().includes('mismatch');
+  const dbMatchUpper = String(matchingData.databaseMatch || '').toUpperCase();
+  const isSkipped = dbMatchUpper === 'SKIPPED' || dbMatchUpper.includes('DISABLED');
+  const isMatched = !isSkipped &&
+                    !dbMatchUpper.includes('DISCREP') &&
+                    !dbMatchUpper.includes('NOT FOUND') &&
+                    !dbMatchUpper.includes('NO MATCH') &&
+                    !dbMatchUpper.includes('MISMATCH');
+
+  const badgeClass = isSkipped ? 'badge-neutral' : (isMatched ? 'badge-verified' : 'badge-review');
+  const badgeLabel = isSkipped ? 'Skipped (Prototype)' : (isMatched ? 'Match Confirmed' : 'Discrepancy');
 
   return (
     <div className="card">
@@ -21,16 +28,16 @@ export default function MatchingResultCard({ matchingData }) {
           </div>
         </div>
 
-        <span className={`badge ${isMatched ? 'badge-verified' : 'badge-review'}`}>
+        <span className={`badge ${badgeClass}`}>
           {isMatched ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-          <span>{isMatched ? 'Match Confirmed' : 'Discrepancy'}</span>
+          <span>{badgeLabel}</span>
         </span>
       </div>
 
       <div className="forensic-field-list">
         <div className="forensic-field-item">
           <span className="field-label">Database Match</span>
-          <span className="field-value" style={{ color: isMatched ? 'var(--color-success)' : 'var(--color-warning)' }}>
+          <span className="field-value" style={{ color: isSkipped ? 'var(--text-muted)' : (isMatched ? 'var(--color-success)' : 'var(--color-warning)') }}>
             {matchingData.databaseMatch || 'Pending Lookup'}
           </span>
         </div>

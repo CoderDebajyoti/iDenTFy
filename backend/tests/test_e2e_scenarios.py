@@ -58,7 +58,7 @@ def test_case_2_expired_document_blocks_face_verification():
     assert resp.status_code == 200
     res = resp.json()
 
-    assert res["document_status"] in ("EXPIRED", "REQUIRES_REVIEW")
+    assert res["document_status"] in ("EXPIRED", "REQUIRES_REVIEW", "NOT_VERIFIED")
     assert res["can_proceed_to_face"] is False
 
     # Attempt face verification -> MUST BE BLOCKED
