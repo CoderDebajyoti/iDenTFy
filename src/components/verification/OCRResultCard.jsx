@@ -192,10 +192,55 @@ export default function OCRResultCard({ ocrData, onHoverField }) {
       </div>
 
       {/* Machine Readable Zone (MRZ 9303) */}
-      {ocrData.mrzRaw && (
+      {ocrData.mrzRaw ? (
         <div style={{ marginTop: '8px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span className="field-label" style={{ marginBottom: 0 }}>Machine Readable Zone (ICAO 9303 MRZ)</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="field-label" style={{ marginBottom: 0 }}>Machine Readable Zone (ICAO 9303 MRZ)</span>
+              {/* MRZ Status Badge */}
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background:
+                    ocrData.mrzStatus === 'MRZ_VALID'
+                      ? '#dcfce7'
+                      : ocrData.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE'
+                      ? '#fef3c7'
+                      : ocrData.mrzStatus === 'MRZ_UNRELIABLE'
+                      ? '#fee2e2'
+                      : '#f1f5f9',
+                  color:
+                    ocrData.mrzStatus === 'MRZ_VALID'
+                      ? '#15803d'
+                      : ocrData.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE'
+                      ? '#b45309'
+                      : ocrData.mrzStatus === 'MRZ_UNRELIABLE'
+                      ? '#b91c1c'
+                      : '#64748b',
+                  border: '1px solid currentColor',
+                }}
+              >
+                {ocrData.mrzStatus === 'MRZ_VALID' && <CheckCircle2 size={12} />}
+                {ocrData.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE' && <AlertCircle size={12} />}
+                {ocrData.mrzStatus === 'MRZ_UNRELIABLE' && <AlertCircle size={12} />}
+                <span>
+                  {ocrData.mrzStatus === 'MRZ_VALID'
+                    ? 'MRZ Valid'
+                    : ocrData.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE'
+                    ? 'MRZ OCR Correction Candidate'
+                    : ocrData.mrzStatus === 'MRZ_UNRELIABLE'
+                    ? 'MRZ Unreliable'
+                    : 'MRZ Not Detected'}
+                </span>
+              </span>
+            </div>
+
             <button
               onClick={() => handleCopy(ocrData.mrzRaw)}
               style={{
@@ -214,6 +259,42 @@ export default function OCRResultCard({ ocrData, onHoverField }) {
               <span>{copied ? 'Copied' : 'Copy MRZ'}</span>
             </button>
           </div>
+
+          {/* OCR Correction Candidate Notice */}
+          {ocrData.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE' && (
+            <div
+              style={{
+                padding: '8px 12px',
+                marginBottom: '8px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.76rem',
+                color: '#92400e',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Candidate Ambiguity Note:</strong> MRZ contains an OCR ambiguity; checksum/structure analysis suggests a plausible single-character correction. Verified independently against field rules.
+            </div>
+          )}
+
+          {ocrData.mrzStatus === 'MRZ_UNRELIABLE' && (
+            <div
+              style={{
+                padding: '8px 12px',
+                marginBottom: '8px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.76rem',
+                color: '#991b1b',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>MRZ Verification Warning:</strong> Checksum verification failed or character resolution is uncertain. Physical inspection recommended.
+            </div>
+          )}
+
           <div
             style={{
               padding: '10px 14px',
@@ -231,7 +312,12 @@ export default function OCRResultCard({ ocrData, onHoverField }) {
             {ocrData.mrzRaw}
           </div>
         </div>
+      ) : (
+        <div style={{ marginTop: '8px', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0', fontSize: '0.76rem', color: '#64748b' }}>
+          <strong>MRZ Status:</strong> Not Detected in this document image.
+        </div>
       )}
+
 
       {/* Toggle Raw OCR Text Lines Stream */}
       {ocrData.textLines && ocrData.textLines.length > 0 && (

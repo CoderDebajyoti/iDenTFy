@@ -80,14 +80,20 @@ def process_document_upload(
     ocr_res["document_image_filename"] = safe_name
 
     # 6. Parse MRZ & Check digits
-    mrz_raw = ocr_res["fields"].get("mrz_raw")
-    mrz_res = parse_and_validate_mrz(mrz_raw)
+    mrz_res = ocr_res.get("mrz_result")
+    if not mrz_res or not mrz_res.get("detected"):
+        mrz_raw = ocr_res["fields"].get("mrz_raw")
+        mrz_res = parse_and_validate_mrz(mrz_raw)
 
     # If MRZ found fields, supplement any missing visual fields
     if mrz_res.get("detected") and mrz_res.get("fields"):
         for k in ["full_name", "document_number", "nationality", "gender", "sex", "date_of_birth", "expiry_date"]:
-            if not ocr_res["fields"].get(k) and mrz_res["fields"].get(k):
-                ocr_res["fields"][k] = mrz_res["fields"][k]
+            val = mrz_res["fields"].get(k)
+            if isinstance(val, dict):
+                val = val.get("value")
+            if not ocr_res["fields"].get(k) and val:
+                ocr_res["fields"][k] = val
+
 
     # 7. Database / Government Registry Matching
     matching_res = match_document_against_database(

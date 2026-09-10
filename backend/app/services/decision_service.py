@@ -39,18 +39,23 @@ def evaluate_document_decision(
         reasons.append("Document expiration date has passed.")
         return "EXPIRED", reasons
 
-    # 2. Critical Validation / Checksum Failures (NOT_VERIFIED)
-    mrz_detected = mrz_result.get("mrz_detected", mrz_result.get("detected", False))
-    mrz_valid = mrz_result.get("mrz_valid", mrz_result.get("valid", True))
-    if mrz_detected and not mrz_valid:
-        reasons.append("MRZ check digit checksum mismatch: Cryptographic/checksum verification failed.")
-        return "NOT_VERIFIED", reasons
-
-    # 3. Tampering & Forgery Detection (NOT_VERIFIED)
+    # 2. Tampering & Forgery Detection (Hard NOT_VERIFIED)
     if tampering_result.get("tampering_detected"):
         reasons.extend(tampering_result.get("indicators", []))
         reasons.append("High probability of digital alteration or forensic manipulation.")
         return "NOT_VERIFIED", reasons
+
+    # 3. MRZ Status Evaluation
+    mrz_detected = mrz_result.get("mrz_detected", mrz_result.get("detected", False))
+    mrz_valid = mrz_result.get("mrz_valid", mrz_result.get("valid", True))
+    mrz_status = mrz_result.get("mrz_status", "MRZ_VALID" if mrz_valid else "MRZ_UNRELIABLE")
+
+    if mrz_detected:
+        if not mrz_valid or mrz_status == "MRZ_UNRELIABLE":
+            reasons.append("MRZ check digit checksum mismatch or optical noise: physical document inspection recommended.")
+            return "NOT_VERIFIED", reasons
+        elif mrz_status == "MRZ_OCR_CORRECTED_CANDIDATE":
+            reasons.append("MRZ optical ambiguity resolved via check-digit candidate analysis.")
 
     # 4. Database Matching & Registry Cross-Check
     db_match = matching_result.get("database_match") or matching_result.get("registry_match")
@@ -61,6 +66,7 @@ def evaluate_document_decision(
     if db_match and match_type in ("strong_match", "exact", "bypassed") and mrz_valid and not tampering_result.get("requires_review"):
         reasons.append("Registry match verified, valid credentials, and clean forensic integrity.")
         return "VERIFIED", reasons
+
 
     if match_type == "partial_match" or (0.80 <= name_sim < 0.95):
         reasons.append(f"Name spelling variation or minor field discrepancy (Similarity: {int(name_sim * 100)}%).")

@@ -303,3 +303,140 @@ def preprocess_document_for_ocr(img_bgr: np.ndarray) -> Tuple[np.ndarray, Dict[s
     }
 
     return enhanced_img, metadata
+
+def detect_mrz_region(img_bgr: np.ndarray) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Locate and extract the dedicated Machine Readable Zone (MRZ) region from a document.
+    Uses morphological gradient analysis in the lower document section with generous safety padding
+    to guarantee edge characters (leading identifiers and trailing fillers) are not clipped.
+    """
+    h_img, w_img = img_bgr.shape[:2]
+    # Default fallback: lower 35% with full width
+    default_top_y = max(0, int(h_img * 0.65))
+    fallback_crop = img_bgr[default_top_y:h_img, 0:w_img]
+
+    try:
+        # Focus analysis on the lower 45% of the document
+        roi_top = int(h_img * 0.55)
+        roi = img_bgr[roi_top:h_img, 0:w_img]
+        roi_h, roi_w = roi.shape[:2]
+
+        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        # Blackhat morphology to extract dark text elements against background
+        rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 5))
+        blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, rect_kernel)
+
+        # Compute Scharr gradient along X-axis
+        grad_x = cv2.Sobel(blackhat, ddepth=cv2.CV_32F, dx=1, dy=0, ksize=-1)
+        grad_x = np.absolute(grad_x)
+        min_val, max_val = np.min(grad_x), np.max(grad_x)
+        if max_val > min_val:
+            grad_x = (255 * ((grad_x - min_val) / (max_val - min_val))).astype("uint8")
+        else:
+            grad_x = grad_x.astype("uint8")
+
+        # Blur and close to connect character segments horizontally
+        grad_x = cv2.GaussianBlur(grad_x, (3, 3), 0)
+        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (21, 5))
+        thresh = cv2.morphologyEx(grad_x, cv2.MORPH_CLOSE, close_kernel)
+        _, thresh = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+
+        # Morphological closing to join lines
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (33, 7)))
+
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        best_box = None
+        best_area = 0
+
+        for c in contours:
+            x, y, w, h = cv2.boundingRect(c)
+            aspect = w / float(h) if h > 0 else 0
+            coverage_w = w / float(roi_w)
+            # MRZ spans majority of horizontal width and has high aspect ratio
+            if coverage_w >= 0.45 and aspect >= 4.0 and h >= 15:
+                area = w * h
+                if area > best_area:
+                    best_area = area
+                    best_box = (x, y + roi_top, w, h)
+
+        if best_box is not None:
+            bx, by, bw, bh = best_box
+            # Add generous safety margins (5% width, 12% height)
+            pad_x = int(bw * 0.05)
+            pad_y = int(bh * 0.15)
+            x1 = max(0, bx - pad_x)
+            y1 = max(0, by - pad_y)
+            x2 = min(w_img, bx + bw + pad_x)
+            y2 = min(h_img, by + bh + pad_y)
+            crop = img_bgr[y1:y2, x1:x2]
+            if crop.shape[0] > 25 and crop.shape[1] > 100:
+                return crop, {"method": "morphological_contour", "bbox": [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]}
+
+        return fallback_crop, {"method": "geometric_bottom_band", "bbox": [0, default_top_y, w_img, h_img - default_top_y]}
+    except Exception:
+        return fallback_crop, {"method": "fallback_default", "bbox": [0, default_top_y, w_img, h_img - default_top_y]}
+
+def generate_mrz_preprocessed_variants(mrz_crop: np.ndarray) -> List[Tuple[str, np.ndarray]]:
+    """
+    Generate multiple targeted preprocessed variants of the MRZ crop for multi-pass OCR.
+    All variants are standardized to optimal OCR line resolution without destroying thin character strokes.
+    """
+    if mrz_crop is None or mrz_crop.size == 0:
+        return []
+
+    h, w = mrz_crop.shape[:2]
+    # Optimal target height for 2-line MRZ is ~140-180px
+    if h < 140:
+        scale = 160.0 / float(h)
+        base_crop = cv2.resize(mrz_crop, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    elif h > 300:
+        scale = 220.0 / float(h)
+        base_crop = cv2.resize(mrz_crop, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    else:
+        base_crop = mrz_crop.copy()
+
+    gray = cv2.cvtColor(base_crop, cv2.COLOR_BGR2GRAY) if len(base_crop.shape) == 3 else base_crop
+
+    variants = []
+
+    # Variant 1: Base High-Contrast CLAHE
+    try:
+        clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+        v1_gray = clahe.apply(gray)
+        v1 = cv2.cvtColor(v1_gray, cv2.COLOR_GRAY2BGR)
+        variants.append(("clahe_contrast", v1))
+    except Exception:
+        variants.append(("raw_crop", base_crop))
+
+    # Variant 2: Denoised & Unsharp Mask Sharpened
+    try:
+        denoised = cv2.bilateralFilter(gray, 7, 50, 50)
+        gaussian = cv2.GaussianBlur(denoised, (0, 0), 2.0)
+        sharpened = cv2.addWeighted(denoised, 1.6, gaussian, -0.6, 0)
+        v2 = cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)
+        variants.append(("denoised_sharpened", v2))
+    except Exception:
+        pass
+
+    # Variant 3: Adaptive Binarization with stroke preservation
+    try:
+        v3_thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 10
+        )
+        # 2x2 close kernel to prevent character stroke fragmentation
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        v3_closed = cv2.morphologyEx(v3_thresh, cv2.MORPH_CLOSE, kernel)
+        v3 = cv2.cvtColor(v3_closed, cv2.COLOR_GRAY2BGR)
+        variants.append(("adaptive_binarized", v3))
+    except Exception:
+        pass
+
+    # Variant 4: Illumination Balanced (Removes flash/specular glare)
+    try:
+        v4 = normalize_illumination(base_crop)
+        variants.append(("illumination_normalized", v4))
+    except Exception:
+        pass
+
+    return variants if variants else [("raw_crop", base_crop)]
+

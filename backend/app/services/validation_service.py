@@ -95,7 +95,7 @@ def validate_document_rules(
     return {
         "is_valid": is_valid,
         "status_determination": status_override or ("VALID" if is_valid else "REQUIRES_REVIEW"),
-        "is_expired": is_expired,
+        "is_expired": is_expired or (status_override == "EXPIRED"),
         "is_blacklisted": status_override == "BLACKLISTED",
         "is_suspended": status_override == "SUSPENDED",
         "issues": issues,

@@ -325,7 +325,56 @@ export default function VerificationDetails() {
 
               {record.ocrDetails.mrzRaw && (
                 <div style={{ marginTop: '16px' }}>
-                  <span className="field-label">Raw MRZ Data String</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span className="field-label" style={{ marginBottom: 0 }}>Raw MRZ Data String (ICAO 9303)</span>
+                    {record.ocrDetails.mrzStatus && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          background:
+                            record.ocrDetails.mrzStatus === 'MRZ_VALID'
+                              ? '#dcfce7'
+                              : record.ocrDetails.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE'
+                              ? '#fef3c7'
+                              : record.ocrDetails.mrzStatus === 'MRZ_UNRELIABLE'
+                              ? '#fee2e2'
+                              : '#f1f5f9',
+                          color:
+                            record.ocrDetails.mrzStatus === 'MRZ_VALID'
+                              ? '#15803d'
+                              : record.ocrDetails.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE'
+                              ? '#b45309'
+                              : record.ocrDetails.mrzStatus === 'MRZ_UNRELIABLE'
+                              ? '#b91c1c'
+                              : '#64748b',
+                          border: '1px solid currentColor',
+                        }}
+                      >
+                        {record.ocrDetails.mrzStatus.replace(/_/g, ' ')}
+                      </span>
+                    )}
+                  </div>
+
+                  {record.ocrDetails.mrzStatus === 'MRZ_OCR_CORRECTED_CANDIDATE' && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        marginBottom: '8px',
+                        backgroundColor: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.76rem',
+                        color: '#92400e',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      <strong>OCR Correction Candidate:</strong> MRZ contains an OCR ambiguity; checksum/structure analysis identified a plausible single-character candidate.
+                    </div>
+                  )}
+
                   <div
                     style={{
                       marginTop: '6px',
