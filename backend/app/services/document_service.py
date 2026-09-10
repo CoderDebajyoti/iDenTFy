@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 import cv2
 
 from app.config import settings
-from app.utils.security import validate_image_bytes, generate_safe_filename
+from app.utils.security import validate_image_bytes, generate_safe_filename, cleanup_temp_files
 from app.services.image_preprocessing import (
     validate_and_decode_image,
     assess_optical_quality,
@@ -46,6 +46,9 @@ def process_document_upload(
     """
     Execute complete end-to-end document verification pipeline.
     """
+    # 0. Routine maintenance: purge stale temporary files
+    cleanup_temp_files(settings.TEMP_DIR)
+
     # 1. Validate magic bytes header directly from content
     is_valid_format, mime_or_err = validate_image_bytes(file_bytes)
     if not is_valid_format:

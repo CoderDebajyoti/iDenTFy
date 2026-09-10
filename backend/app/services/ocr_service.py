@@ -5,9 +5,12 @@ Supports RapidOCR (PP-OCRv4 ONNX), PaddleOCR, multi-pass analysis, and optical c
 
 import re
 import time
+import logging
 import cv2
 import numpy as np
 from typing import Dict, Any, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from app.services.image_preprocessing import (
     preprocess_document_for_ocr,
@@ -98,7 +101,7 @@ def _run_single_engine_ocr(img_bgr: np.ndarray) -> Tuple[List[Dict[str, Any]], L
                     })
                     confidences.append(score)
     except Exception as e:
-        print(f"Error during OCR execution: {e}")
+        logger.error(f"Error during OCR execution: {e}")
 
     return lines, confidences
 

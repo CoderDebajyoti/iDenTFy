@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Any
 from dotenv import load_dotenv
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,10 +36,12 @@ class Settings(BaseSettings):
     # Biometric Threshold
     FACE_SIMILARITY_THRESHOLD: float = 0.68
 
-    # Database Matching Bypass Flag
+    # Database Matching Flags (Production screening keeps database matching disabled / bypassed by default)
+    DATABASE_MATCHING_ENABLED: bool = False
     BYPASS_DATABASE_MATCHING: bool = True
 
-    # CORS
+    # Frontend URL & CORS
+    FRONTEND_URL: str = ""
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
         "http://localhost:5174",
@@ -48,6 +50,18 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     ]
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> List[str]:
+        origins = list(v) if isinstance(v, (list, tuple)) else ([i.strip() for i in str(v).split(",") if i.strip()] if v else [])
+        frontend_url = os.environ.get("FRONTEND_URL", "").strip()
+        if frontend_url:
+            for u in frontend_url.split(","):
+                u_clean = u.strip().rstrip("/")
+                if u_clean and u_clean not in origins:
+                    origins.append(u_clean)
+        return origins if origins else ["*"]
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
@@ -55,8 +69,11 @@ class Settings(BaseSettings):
         if not val:
             raise ValueError(
                 "Configuration Error: DATABASE_URL is missing or empty. "
-                "Ensure backend/.env contains a valid DATABASE_URL or set it in your environment."
+                "Ensure a valid PostgreSQL connection string is provided."
             )
+        # Render PostgreSQL compatibility: SQLAlchemy 2.0 requires postgresql://
+        if val.startswith("postgres://"):
+            val = val.replace("postgres://", "postgresql://", 1)
         return val
 
 try:

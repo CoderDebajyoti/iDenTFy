@@ -43,3 +43,22 @@ def is_safe_path(base_dir: str, target_path: str) -> bool:
     resolved_base = os.path.realpath(base_dir)
     resolved_target = os.path.realpath(target_path)
     return resolved_target.startswith(resolved_base)
+
+def cleanup_temp_files(temp_dir: str, max_age_seconds: int = 3600):
+    """
+    Purge stale temporary upload artifacts older than max_age_seconds to prevent disk bloat.
+    """
+    try:
+        import time
+        if not os.path.exists(temp_dir):
+            return
+        now = time.time()
+        for fname in os.listdir(temp_dir):
+            fpath = os.path.join(temp_dir, fname)
+            if os.path.isfile(fpath) and (now - os.path.getmtime(fpath)) > max_age_seconds:
+                try:
+                    os.unlink(fpath)
+                except Exception:
+                    pass
+    except Exception:
+        pass
