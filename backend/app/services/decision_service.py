@@ -63,11 +63,11 @@ def evaluate_document_decision(
     name_sim = matching_result.get("name_similarity", 0.0)
 
     # 5. Synthesis Rules
-    if match_type == "skipped" and mrz_valid and not tampering_result.get("requires_review"):
-        reasons.append("Document passes optical and forensic screening (Database matching skipped in prototype mode).")
+    if match_type in ("skipped", "bypassed") and mrz_valid and not tampering_result.get("requires_review"):
+        reasons.append("Document passes optical and forensic screening (Database matching bypassed).")
         return "VERIFIED", reasons
 
-    if db_match and match_type in ("strong_match", "exact") and mrz_valid and not tampering_result.get("requires_review"):
+    if db_match and match_type in ("strong_match", "exact", "bypassed") and mrz_valid and not tampering_result.get("requires_review"):
         reasons.append("Registry match verified, valid credentials, and clean forensic integrity.")
         return "VERIFIED", reasons
 

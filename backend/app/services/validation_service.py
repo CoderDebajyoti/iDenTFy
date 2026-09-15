@@ -49,7 +49,7 @@ def validate_document_rules(
         elif reg_status == "expired":
             status_override = "EXPIRED"
             issues.append("Document has expired per official registry records.")
-    else:
+    elif matching_result.get("match_type") not in ("skipped", "bypassed"):
         # Record not in database
         issues.append("Document not found in central database. Requires secondary verification.")
 

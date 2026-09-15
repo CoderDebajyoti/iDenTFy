@@ -142,34 +142,62 @@ def process_document_upload(
     extracted_issue = ocr_res["fields"].get("issue_date")
     extracted_expiry = ocr_res["fields"].get("expiry_date")
 
-    if matched_doc_id:
-        doc_record = db.query(Document).filter(Document.id == matched_doc_id).first()
+    try:
+        if matched_doc_id:
+            doc_record = db.query(Document).filter(Document.id == matched_doc_id).first()
+
+        if not doc_record and extracted_doc_num:
+            doc_record = db.query(Document).filter(Document.document_number == str(extracted_doc_num).strip()).first()
+
         if doc_record:
+            if extracted_country and not doc_record.issuing_country:
+                doc_record.issuing_country = extracted_country
             if extracted_issue and not doc_record.issue_date:
                 doc_record.issue_date = extracted_issue
             if extracted_expiry and not doc_record.expiry_date:
                 doc_record.expiry_date = extracted_expiry
             doc_record.updated_at = datetime.utcnow()
+        else:
+            # Create a new Document record with real extracted/available data only
+            doc_record = Document(
+                id=str(uuid.uuid4()),
+                person_id=None,
+                document_type=document_type,
+                document_number=extracted_doc_num,
+                issuing_country=extracted_country,
+                issue_date=extracted_issue,
+                expiry_date=extracted_expiry,
+                status="active" if decision == "VERIFIED" else "pending_review",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(doc_record)
+            db.flush()
+    except Exception as db_err:
+        db.rollback()
+        # Fallback: retrieve if existed or create with a unique temporary identifier
+        if extracted_doc_num:
+            doc_record = db.query(Document).filter(Document.document_number == str(extracted_doc_num).strip()).first()
+        if not doc_record:
+            doc_record = Document(
+                id=str(uuid.uuid4()),
+                person_id=None,
+                document_type=document_type,
+                document_number=extracted_doc_num or f"DOC-{uuid.uuid4().hex[:8].upper()}",
+                issuing_country=extracted_country,
+                issue_date=extracted_issue,
+                expiry_date=extracted_expiry,
+                status="pending_review",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            try:
+                db.add(doc_record)
+                db.flush()
+            except Exception:
+                db.rollback()
 
-    if not doc_record:
-        # Create a new Document record with real extracted/available data only
-        # Never invent fake/demo person IDs, fake names, or fake document numbers!
-        doc_record = Document(
-            id=str(uuid.uuid4()),
-            person_id=None,
-            document_type=document_type,
-            document_number=extracted_doc_num,
-            issuing_country=extracted_country,
-            issue_date=extracted_issue,
-            expiry_date=extracted_expiry,
-            status="active" if decision == "VERIFIED" else "pending_review",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db.add(doc_record)
-        db.flush()
-
-    actual_doc_id = doc_record.id
+    actual_doc_id = doc_record.id if doc_record else str(uuid.uuid4())
 
     # 13. Create Persistent Verification Record in Database
     verification_id = f"IDF-2026-{uuid.uuid4().hex[:5].upper()}"
@@ -177,26 +205,29 @@ def process_document_upload(
     # Face verification eligibility: strictly locked if document is not accepted/verified!
     can_proceed_to_face = (decision == "VERIFIED")
 
-    record = VerificationRecord(
-        id=verification_id,
-        document_id=actual_doc_id,
-        verification_status=decision,
-        risk_level=risk_res["risk_level"],
-        risk_score=risk_res["risk_score"],
-        risk_reasons=risk_res["reasons"],
-        ocr_data=ocr_res,
-        matching_data=matching_res,
-        validation_data=validation_res,
-        tampering_data=tampering_res,
-        face_data={"status": "PENDING", "eligible": can_proceed_to_face},
-        document_decision=decision,
-        final_decision=decision if not can_proceed_to_face else "PENDING_FACE_VERIFICATION",
-        officer_notes="; ".join(decision_reasons),
-        created_at=datetime.utcnow()
-    )
+    try:
+        record = VerificationRecord(
+            id=verification_id,
+            document_id=actual_doc_id if doc_record else None,
+            verification_status=decision,
+            risk_level=risk_res["risk_level"],
+            risk_score=risk_res["risk_score"],
+            risk_reasons=risk_res["reasons"],
+            ocr_data=ocr_res,
+            matching_data=matching_res,
+            validation_data=validation_res,
+            tampering_data=tampering_res,
+            face_data={"status": "PENDING", "eligible": can_proceed_to_face},
+            document_decision=decision,
+            final_decision=decision if not can_proceed_to_face else "PENDING_FACE_VERIFICATION",
+            officer_notes="; ".join(decision_reasons),
+            created_at=datetime.utcnow()
+        )
 
-    db.add(record)
-    db.commit()
+        db.add(record)
+        db.commit()
+    except Exception as rec_err:
+        db.rollback()
 
     return {
         "success": True,

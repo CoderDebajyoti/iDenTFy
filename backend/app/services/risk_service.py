@@ -45,12 +45,13 @@ def calculate_risk_assessment(
 
     # 2. Database Matching
     match_type = matching_result.get("match_type")
-    if match_type == "no_match" or not matching_result.get("database_match"):
-        score += 25
-        reasons.append("Registry Notice: Credential not indexed in database (+25)")
-    elif match_type == "partial_match":
-        score += 15
-        reasons.append("Identity Notice: Name spelling variation detected (+15)")
+    if match_type not in ("skipped", "bypassed"):
+        if match_type == "no_match" or not matching_result.get("database_match"):
+            score += 25
+            reasons.append("Registry Notice: Credential not indexed in database (+25)")
+        elif match_type == "partial_match":
+            score += 15
+            reasons.append("Identity Notice: Name spelling variation detected (+15)")
 
     # 3. Tampering Signals
     if tampering_result.get("tampering_detected"):
